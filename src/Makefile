@@ -20,6 +20,9 @@ RMIC_FLAGS=-v1.2 -d . -g -classpath $(CLASSPATH)
 JAVADOC=javadoc
 JAVADOC_FLAGS=-source 1.4 -quiet -breakiterator -sourcepath .:/usr/java/src -classpath $(CLASSPATH) -splitindex -version -author -private -doctitle "JiST (Java in Simulation Time) - API Documentation"
 
+# functions
+rwildcard = $(foreach d,$(wildcard $1*),$(call rwildcard,$d/)$(filter $(subst *,%,$2),$d))
+
 # source files
 JIST_SRC:= \
 	$(wildcard jist/runtime/*.java) \
@@ -39,6 +42,9 @@ SWANS_SRC:= \
 	$(wildcard jist/swans/app/lang/*.java) \
 	$(wildcard jist/swans/misc/*.java) \
 	$(wildcard jist/swans/gui/*.java) \
+
+I7_SRC:= \
+	$(shell find de/fau/cs7 -name "*\.java") \
 
 APP_SRC:= \
 	$(wildcard jist/minisim/*.java) \
@@ -87,6 +93,7 @@ RMI_CLASS := \
 
 JIST_OBJ:=$(JIST_SRC:.java=.class)
 SWANS_OBJ:=$(SWANS_SRC:.java=.class)
+I7_OBJ:=$(I7_SRC:.java=.class)
 APP_OBJ:=$(APP_SRC:.java=.class)
 RMI_STUB_CLASS:=$(RMI_CLASS:.class=_Stub.class)
 
@@ -106,12 +113,12 @@ clean:
 
 jist: $(JIST_OBJ)
 
-swans: jist $(SWANS_OBJ) swansjni
+swans: jist $(SWANS_OBJ) $(I7_OBJ) swansjni
 
-swansjni: $(SWANS_OBJ) $(APP_OBJ)
+swansjni: $(SWANS_OBJ) $(APP_OBJ) $(I7_OBJ)
 	@-make -C jist/swans/misc
 
-app: jist swans $(APP_OBJ)
+app: jist swans $(APP_OBJ) $(I7_OBJ)
 
 rmi: jist $(RMI_STUB_CLASS)
 
@@ -123,6 +130,10 @@ $(JIST_OBJ): $(JIST_SRC)
 $(SWANS_OBJ): $(SWANS_SRC)
 	$(JAVAC) $(JAVAC_FLAGS) $(SWANS_SRC)
 	@touch $(SWANS_OBJ)
+
+$(I7_OBJ): $(I7_SRC)
+	$(JAVAC) $(JAVAC_FLAGS) $(I7_SRC)
+	@touch $(I7_OBJ)
 
 $(APP_OBJ): $(APP_SRC)
 	$(JAVAC) $(JAVAC_FLAGS) $(APP_SRC)
