@@ -5,6 +5,20 @@ Copyright (C) 2004 by Cornell University
 All rights reserved.
 Refer to LICENSE for terms and conditions of use.
 
+/******************************************************************************
+*******************************************************************************
+**                                                                           **
+**  This is a modified copy of the original JiST/SWANS source tree obtained  **
+**  via git checkout. During the checkout, several patches were applied, so  **
+**  this source tree might at any time have become license-incompatible with **
+**  the original JiST/SWANS.                                                 **
+**                                                                           **
+**  Please double-check for any incompatibilities before re-distribution.    **
+**                                                                           **
+**  All patches are documented and can be viewed in the git log.             **
+**                                                                           **
+*******************************************************************************
+******************************************************************************/
 
 Contents of this README:
   PROJECT         - Project details
