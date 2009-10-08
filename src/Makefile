@@ -43,6 +43,9 @@ SWANS_SRC:= \
 	$(wildcard jist/swans/misc/*.java) \
 	$(wildcard jist/swans/gui/*.java) \
 
+ITM_SRC:= \
+	$(shell find de/uniluebeck -name "*\.java") \
+
 I7_SRC:= \
 	$(shell find de/fau/cs7 -name "*\.java") \
 
@@ -93,6 +96,7 @@ RMI_CLASS := \
 
 JIST_OBJ:=$(JIST_SRC:.java=.class)
 SWANS_OBJ:=$(SWANS_SRC:.java=.class)
+ITM_OBJ:=$(ITM_SRC:.java=.class)
 I7_OBJ:=$(I7_SRC:.java=.class)
 APP_OBJ:=$(APP_SRC:.java=.class)
 RMI_STUB_CLASS:=$(RMI_CLASS:.class=_Stub.class)
@@ -113,12 +117,12 @@ clean:
 
 jist: $(JIST_OBJ)
 
-swans: jist $(SWANS_OBJ) $(I7_OBJ) swansjni
+swans: jist $(SWANS_OBJ) $(ITM_OBJ) $(I7_OBJ) swansjni
 
-swansjni: $(SWANS_OBJ) $(APP_OBJ) $(I7_OBJ)
+swansjni: $(SWANS_OBJ) $(APP_OBJ) $(ITM_OBJ) $(I7_OBJ)
 	@-make -C jist/swans/misc
 
-app: jist swans $(APP_OBJ) $(I7_OBJ)
+app: jist swans $(APP_OBJ) $(ITM_OBJ) $(I7_OBJ)
 
 rmi: jist $(RMI_STUB_CLASS)
 
@@ -130,6 +134,10 @@ $(JIST_OBJ): $(JIST_SRC)
 $(SWANS_OBJ): $(SWANS_SRC)
 	$(JAVAC) $(JAVAC_FLAGS) $(SWANS_SRC)
 	@touch $(SWANS_OBJ)
+
+$(ITM_OBJ): $(ITM_SRC)
+	$(JAVAC) $(JAVAC_FLAGS) $(ITM_SRC)
+	@touch $(ITM_OBJ)
 
 $(I7_OBJ): $(I7_SRC)
 	$(JAVAC) $(JAVAC_FLAGS) $(I7_SRC)
