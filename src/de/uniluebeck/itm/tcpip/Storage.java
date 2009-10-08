@@ -496,5 +496,29 @@ public class Storage {
 		listIt = storageList.listIterator();
 	}
 		
+	/*
+	 * Retrieve storage contents as a block of Bytes
+	 * @return storage contents
+	 */
+	public byte[] getBytes()
+	{
+		byte[] buffer = new byte[size()];
+		for (int i=0; i < size(); i++) buffer[i] = storageList.get(i).byteValue();
+
+		return buffer;
+	}
+
+	/*
+	 * Retrieve storage contents as a block of Bytes
+	 * @return storage contents
+	 */
+	public void writeBytes(byte[] packet)
+	{
+		for (int i=0; i < packet.length; i++)
+		{
+			storageList.add(new Byte(packet[i]));
+		}
+	}
+
 }
 
