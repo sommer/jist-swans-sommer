@@ -1,0 +1,245 @@
+#! /bin/env python
+
+##################################################
+# Name:        queuerun
+# Author:      Rimon Barr <barr@cs.cornell.edu>
+
+__doc__ = 'Cached execution engine'
+__version__ = '0.1'
+
+##################################################
+# Activity log:
+#
+# 16/01/04 - first version
+
+
+##################################################
+# Todo:
+#
+# - add run number functionality
+
+
+CACHE_PREFIX = 'cacherun-'
+BAD_RETCODES = [9, 15]
+GOOD_RETCODES = [0, 1]
+
+import getopt, sys, string, os, re, md5, popen2, time, glob
+
+##################################################
+# output
+
+def showVersion():
+  print 'cacherun v'+__version__+', by Rimon Barr:',
+  print 'Caching execution engine.'
+
+def showUsage():
+  print
+  showVersion()
+  print '''
+SYNOPSIS:
+  Execute command backed by a cache.
+
+USAGE: cacherun [opts] cmd
+       cacherun -h | -v
+
+  -h, -?, --help      display this help information
+  -v, --version       display version
+  -d, --dir           cache directory [current]
+  -f, --force         ignore any existing cached run
+  -u, --unforce       only display run if cached
+  -q, --quiet         do not output the run
+  -l, --list          list commands of matching files or commands
+  -n, --name          return cache filename for cmd, if it exists
+  -r, --remove        delete cache entry for cmd
+
+Send comments, suggestions and bug reports to <barr+cacherun@cs.cornell.edu>.
+
+'''
+
+def usageError():
+  print 'cacherun command syntax error'
+  print 'Try `cacherun --help\' for more information.'
+
+##################################################
+# cache functionality
+
+class CacheRun:
+  def __init__(self, cachedir='.'):
+    self.setDir(cachedir)
+  def setDir(self, cachedir='.'):
+    self._cachedir = cachedir
+  def filename(self, cmd):
+    if cmd.startswith(CACHE_PREFIX): return cmd
+    m = md5.md5()
+    m.update(cmd)
+    fname = CACHE_PREFIX+m.hexdigest()[:16]
+    fname = os.path.abspath(os.path.join(self._cachedir, fname))
+    return fname
+  def getFile(self, entry):
+    if not os.path.exists(entry): return None
+    try:
+      f = open(entry, 'r')
+      l = f.readline()
+      f.close()
+      return eval(l)
+    except:
+      self.removeFile(entry)
+  def putFile(self, entry, info):
+    #if info['retcode']: return
+    #if info['retcode'] in BAD_RETCODES: return
+    if info['retcode'] not in GOOD_RETCODES: return
+    if not string.strip(info['output']): return
+    finfo = None
+    try:
+      finfo = open(entry, 'w+')
+      print >> finfo, info
+      finfo.close()
+    except:
+      try:
+        self.removeFile(entry)
+      except: pass
+    return info
+  def removeFile(self, entry):
+    try:
+      if os.path.exists(entry): 
+        os.remove(entry)
+    except: pass
+  def exists(self, cmd):
+    return os.path.exists(self.filename(cmd))
+  def get(self, cmd):
+    info = self.getFile(self.filename(cmd))
+    if not info: return -1, None
+    return info['retcode'], info['output']
+  def remove(self, cmd):
+    self.removeFile(self.filename(cmd))
+  def run(self, cmd, show=0, force=0):
+    # check cache
+    if not force and self.exists(cmd):
+      return self.get(cmd)
+    # collect info and run
+    info = {}
+    info['cmd'] = cmd
+    info['cwd'] = os.getcwd()
+    info['starttime'] = time.time()
+    p = popen2.Popen4(cmd, 1)
+    p.tochild.close()
+    if show:
+      out = ''
+      l = p.fromchild.readline()
+      while len(l):
+        sys.stdout.write(l)
+        out = out+l
+        l = p.fromchild.readline()
+    else:
+      out = p.fromchild.read()
+    info['output'] = out
+    info['retcode'] = p.wait()
+    info['endtime'] = time.time()
+    # write info and return
+    self.putFile(self.filename(cmd), info)
+    return self.get(cmd)
+  def list(self, cmd=None):
+    if not cmd: cmd = CACHE_PREFIX+"*"
+    result = []
+    if cmd.startswith(CACHE_PREFIX):
+      files = glob.glob(os.path.join(self._cachedir, cmd))
+      for f in files:
+        info = self.getFile(f)
+        if info: result.append(info['cmd'])
+    else:
+      result = self.list()
+      m = re.compile(cmd)
+      result = [r for r in result if m.search(r)]
+    return result
+
+##################################################
+# entry point
+
+def main():
+  c = CacheRun()
+  forcemode = 0
+  unforcemode = 0
+  showmode = 1
+  listmode = 0
+  namemode = 0
+  removemode = 0
+
+  try:
+    opts, args = getopt.getopt(sys.argv[1:], 'hv?d:qnlfur',
+      ['help', 'version', 'dir=', 'quiet', 'name', 'list',
+      'force', 'unforce', 'remove',])
+  except getopt.error: 
+    usageError()
+    return -1
+  for o, a in opts:
+    if o in ("-h", "--help", "-?"):
+      showUsage()
+      return
+    if o in ("-v", "--version"):
+      showVersion()
+      return
+    if o in ("-d", "--dir"):
+      c.setDir(a)
+    if o in ("-f", "--force"):
+      forcemode = 1
+    if o in ("-u", "--unforce"):
+      unforcemode = 1
+    if o in ("-q", "--quiet"):
+      showmode = 0
+    if o in ("-l", "--list"):
+      listmode = 1
+    if o in ("-n", "--name"):
+      namemode = 1
+    if o in ("-r", "--remove"):
+      removemode = 1
+  cmd = string.join(args)
+
+  if listmode:
+    list = c.list(cmd)
+    for l in list:
+      print l
+  elif namemode:
+    if not cmd:
+      usageError()
+      return
+    if c.exists(cmd):
+      print c.filename(cmd)
+  elif removemode:
+    if not cmd:
+      usageError()
+      return
+    c.remove(cmd)
+  elif unforcemode:
+    if not cmd:
+      usageError()
+      return
+    if c.exists(cmd):
+      retcode, output = c.get(cmd)
+      if showmode and output:
+        sys.stdout.write(output)
+      return retcode
+  elif forcemode:
+    if not cmd:
+      usageError()
+      return
+    retcode, output = c.run(cmd, show=showmode, force=forcemode)
+    return retcode
+  else:
+    if not cmd:
+      usageError()
+      return
+    if c.exists(cmd):
+      retcode, output = c.get(cmd)
+      if showmode and output:
+        sys.stdout.write(output)
+    else:
+      retcode, output = c.run(cmd, show=showmode, force=forcemode)
+    return retcode
+
+if __name__ == '__main__':
+  try:
+    retcode = main()
+    sys.exit(retcode)
+  except KeyboardInterrupt:
+    pass
+

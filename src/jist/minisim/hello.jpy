@@ -1,0 +1,14 @@
+##################################################
+# JIST (Java In Simulation Time) Project
+# Timestamp: <hello.jpy Tue 2004/04/06 11:51:45 barr pompom.cs.cornell.edu>
+#
+
+# Copyright (C) 2004 by Cornell University
+# All rights reserved.
+# Refer to LICENSE for terms and conditions of use.
+
+# run as: jist --jpy hello.jpy
+print 'starting simulation from Jython script!'
+import jist.minisim.hello
+h = jist.minisim.hello()
+h.myEvent()

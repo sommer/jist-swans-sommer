@@ -1,0 +1,16 @@
+How to perform a release:
+
+  - modify ./Makefile.include: set VERSION
+  - make jistjar
+    make swansjar
+    make tarballsrc
+    make tarball
+
+  - cd ../docs
+    modify Makefile.include: set VERSION
+  - cd www
+    modify www/static.spi: set VERSION
+  - make
+    make other
+    make perm
+

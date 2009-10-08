@@ -1,0 +1,177 @@
+JIST (Java In Simulation Time) Project
+Timestamp: <README Tue 2004/04/06 11:54:06 barr pompom.cs.cornell.edu>
+
+Copyright (C) 2004 by Cornell University
+All rights reserved.
+Refer to LICENSE for terms and conditions of use.
+
+
+Contents of this README:
+  PROJECT         - Project details
+  GETTING STARTED - Things to look at first
+  LAYOUT          - Directory structure
+  COMPILE         - How to compile JiST
+  EXECUTION       - How to run JiST
+  MISCELLANEA     - Additional tidbits
+
+
+PROJECT
+-------
+Please refer to:
+  http://www.cs.cornell.edu/barr/repository/jist/
+
+
+GETTING STARTED
+---------------
+
+- Samples JiST and SWANS simulations can be found in:
+    jist/minisim/*.java
+    driver/*.java
+- JiST and SWANS user guides:
+    http://jist.ece.cornell.edu/jist-user/index.html
+    http://jist.ece.cornell.edu/swans-user/index.html
+- Paper: JiST - An efficient approach to simulation using virtual machines
+    http://jist.ece.cornell.edu/docs/040827-jist-vmsim-spe.pdf
+- Other documentation:
+    http://jist.ece.cornell.edu/docs.html
+
+
+LAYOUT
+------
+
+This package contains:
+
+  src - JiST project source code
+    jist/runtime - simulation framework
+    jist/minisim - small test/benchmarking simulations
+    jist/swans   - Scalable Wireless Ad hoc Network Simulation (SWANS)
+      .../field/   - SWANS entities/layers
+      .../radio/
+      .../mac/
+      .../net/
+      .../route/
+      .../trans/
+      .../app/
+        (etc.)
+      .../misc/    - utility classes
+    memprof - JiST memory profiler
+    driver - sample SWANS simulations
+  bin - useful command-line scripts
+  bench - glomosim and ns2 benchmarks
+  libs - various required Java libraries
+
+
+COMPILE
+-------
+
+1.  Set your environment
+      Add the following to your path:
+      - java 
+      - javac, rmic
+      - ${JIST_CODE}/bin
+      Set the following variables
+      - JAVA_HOME
+      Ensure that your CLASSPATH contains:
+      - jist.jar, or the jist directory
+      - the .jar files of all the libraries mentioned below.
+      - any of your simulation development directories
+
+2.  From the top directory, run:
+      make
+
+    All the necessary library dependencies are included within 
+    the source tree under lib/. Specifically, JiST uses the following:
+    - JArgs - Command-line argument processing:
+        http://jargs.sourceforge.net/
+    - Log4j - Logging framework:
+        http://jakarta.apache.org/log4j/
+    - BCEL - Byte-Code Engineering Libary:
+        http://jakarta.apache.org/bcel/
+    - BeanShell - Scripting engine:
+        http://www.beanshell.org/
+    - Jython - Scripting engine:
+        http://www.jython.org/
+
+
+EXECUTION
+---------
+
+Running JiST:
+
+Note: 'jist -h' option will provide syntax help. We like some standard
+configurations for convenience.
+
+1.  Local execution of a simulation
+      jist <simulation>
+      -- where: <simulation> is some class in the classpath
+
+2.  Run JiST with specific properties file
+      jist -c <properties> <simulation>
+    Sample properties files are included:
+      src/jist.properties (default)
+      src/debug.properties
+      src/debug-rewrite.properties
+      src/debug-controller.properties
+      src/off.properties
+
+3.  Disable rewriter caching
+      jist --nocache <simulation>
+    By default, JiST engine caches rewritten simulation class files
+    to improve startup times.
+
+4.  Use a script to configure a simulation
+      jist --bsh <script>
+      jist --jpy <script>
+    These invoke the BeanShell and Jython scripting engines, respectively.
+
+5.  Start a JiST processing server with a local job queue
+      jist -S
+    This server will listen on the default JiST port (3000), and process jobs 
+    on a first-come, first-served basis. You can specify an alternative port
+    with '-p <port>'.
+
+6.  Start a job queue server
+      jist -S -q
+    This server will listen for incoming simulation jobs, but does 
+    not perform processing. JiST processing servers will connect and 
+    dequeue from here. The default port can be changed as above.
+
+7.  Start a JiST processing server with a remote job queue.
+      jist -S -r host:port
+
+8.  We can queue a simulation at a job queue.
+      jist -r host:port <simulation>
+    This client will enqueue the simulation and wait for processing to
+    complete. The client will provide the server with all the classes
+    that it needs and will receive redirected output and error streams.
+
+9.  Running SWANS is a simple matter:
+      jist jist.swans.Main <driver>
+    Or, just abbreviate this to:
+      swans <driver>
+    The SWANS command-line syntax can be viewed by running:
+      swans -h
+
+10. Using the proxy server to connect clients and servers through NAT boxes and
+    firewalls: First, run the ProxyPoint server somewhere on the Internet:
+      java jist.runtime.ProxyPoint
+    Then, use -x switch on clients, servers and the server queue.
+
+
+MISCELLANEA
+-----------
+profiles:
+  java -Xrunhprof:cpu=samples,cutoff=0.0025 jist.runtime.Main jist.minisim.events -m null -n 100000000
+  jistprof sim
+  jistprofcpu sim | profadd.py
+
+rewriting:
+  find all the continuable methods:
+    jist --nocache -c debug-rewrite.properties <sim> | grep "Found continuable"
+  find all the blocking methods:
+    jist --nocache -c debug-rewrite.properties <sim> | grep "Found blocking"
+  prime the rewriter cache:
+    jist jist.minisim.prime -d <directory>
+  perform flow analysis
+    jistflow <class file>
+

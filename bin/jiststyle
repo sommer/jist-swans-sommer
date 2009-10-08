@@ -1,0 +1,5 @@
+#!/bin/bash
+JIST_DIR=`dirname $0`/../
+JIST_SRC=${JIST_DIR}/src
+JIST_LIBS=${JIST_DIR}/libs/checkstyle-all.jar:${JIST_DIR}/libs/jargs.jar:${JIST_DIR}/libs/log4j.jar
+exec java -classpath ${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} com.puppycrawl.tools.checkstyle.Main -c ${JIST_DIR}/libs/style.xml $*

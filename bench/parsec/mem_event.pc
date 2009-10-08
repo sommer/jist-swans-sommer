@@ -1,0 +1,92 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <mem_event.pc Thu 2003/04/24 10:24:43 barr pompom.cs.cornell.edu>
+//
+// Author: Rimon Barr <barr+jist@cs.cornell.edu>
+//
+
+/**
+ * This application measures MEMORY overhead of MESSAGEs
+ * in Parsec. It piles up a whole bunch of messages,
+ * without processing them, to see how much memory they 
+ * take. Conclusion: memory consumption not bad.
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <sys/resource.h>
+
+void outputMemory()
+{
+  char buf[5000];
+  FILE *f;
+  int readbytes;
+
+  f = fopen("/proc/self/status", "r");
+  assert(f);
+  readbytes = fread(buf, sizeof(char), 5000, f);
+  fwrite(buf, sizeof(char), readbytes, stdout);
+  fclose(f);
+}
+
+message process
+{
+};
+
+message finish
+{
+};
+
+entity myEntity()
+{
+  while(1)
+  {
+    receive(process p)
+    {
+    }
+    or receive(finish f)
+    {
+      break;
+    }
+  }
+}
+
+entity driver(int argc, char **argv) 
+{
+  ename e;
+  int i, num;
+  struct rusage info;
+
+  // command-line options
+  if(argc<2)
+  {
+    printf("usage: mem_events <events>\n");
+    exit(1);
+  }
+  num = atoi(argv[1]);
+
+  // fire-up entities
+  e = new myEntity();
+  // schedule messages
+  for(i=0; i<num; i++)
+  {
+    send process 
+    {
+    } to e after i;
+  }
+
+  // output system resources
+  outputMemory();
+
+  // shutdown
+  send finish
+  {
+  } to e;
+
+  // remove usual parsec output
+  exit(1);
+}
+

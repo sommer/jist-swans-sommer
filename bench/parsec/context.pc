@@ -1,0 +1,85 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <context.pc Thu 2003/04/24 10:51:17 barr pompom.cs.cornell.edu>
+//
+// Author: Rimon Barr <barr+jist@cs.cornell.edu>
+//
+
+/**
+ * This application measures SWITCHING overhead of entities
+ * in Parsec. Conclusion: When running sequentially, the
+ * number of context switches does not matter. Greater number 
+ * of entities is only slightly slower, but this is probably
+ * due to the larger memory footprint, and therefore more
+ * cache-misses. The non-preemptive, user-level scheduling
+ * is very efficient. Scales well.
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <time.h>
+
+message process
+{
+};
+
+message finish
+{
+};
+
+entity myEntity(int id, ename creator) 
+{
+  while(1)
+  {
+    receive(process p)
+    {
+    }
+    or receive(finish f)
+    {
+      break;
+    }
+  }
+}
+
+entity driver(int argc, char **argv) 
+{
+  ename *e;
+  int i, j, events, batches, entities;
+  clock_t t1, t2;
+
+  // command-line options
+  if(argc<4)
+  {
+    printf("usage: context <events> <batch> <entities>\n");
+    exit(1);
+  }
+  events = atoi(argv[1]);
+  batches = atoi(argv[2]);
+  entities = atoi(argv[3]);
+
+  // fire-up all entities
+  e = malloc(entities*sizeof(ename));
+  for(i=0; i<entities; i++)
+  {
+    e[i] = new myEntity(i, self);
+  }
+
+  // send batches of events
+  t1 = clock();
+  for(i=0; i<(events/batches); i++)
+  {
+    for(j=0; j<batches; j++)
+    {
+      send process { } to e[i%entities] after i;
+    }
+  }
+
+  // send finish message
+  for(i=0; i<entities; i++)
+  {
+    send finish { } to e[i] after events;
+  }
+}

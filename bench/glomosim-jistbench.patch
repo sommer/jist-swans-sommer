@@ -1,0 +1,567 @@
+diff -crN tmp/glomosim-2.03/glomosim/application/application.pc 1rim/jist/glomosim-bench/application/application.pc
+*** tmp/glomosim-2.03/glomosim/application/application.pc	Thu Sep 13 18:06:12 2001
+--- 1rim/jist/glomosim-bench/application/application.pc	Sun Apr 13 17:17:47 2003
+***************
+*** 74,79 ****
+--- 74,80 ----
+  #include "static_routing.h"
+  #include "fisheye.h"
+  
++ #include "jistbench.h"
+  
+  //#include "rumorsim/include/Limit.h"
+  
+***************
+*** 559,564 ****
+--- 560,571 ----
+              if (serverAddr == node->nodeAddr)
+                  AppHttpServerInit(node);
+          }
++         else if (strcmp(appStr, "JISTBENCH") == 0) {
++           NODE_ADDR mynode = 0;
++           if (node->nodeAddr == mynode) {
++             AppJistBenchInit(node);
++           }
++         }
+          else {
+              printf("Application: Unknown application %s\n", appStr);
+              assert(0); abort();
+***************
+*** 630,635 ****
+--- 637,645 ----
+      //case APP_RUMOR:
+      //    AppLayerRumor(node, msg);
+      //    break;
++     case APP_JISTBENCH:
++         AppLayerJistBench(node, msg);
++         break;
+      default:
+          AppLayerHandleUserAppEvent(
+              node, node->appData.userApplicationData, msg);
+***************
+*** 738,743 ****
+--- 748,757 ----
+              //case APP_RUMOR:
+              //     break;
+  
++             case APP_JISTBENCH:
++                 AppJistBenchFinalize(node, (GlomoAppJistBench *)
++                                  appList->appDetail);
++                 break;
+          }
+  
+          nextApp = appList->appNext;
+diff -crN tmp/glomosim-2.03/glomosim/application/jistbench.h 1rim/jist/glomosim-bench/application/jistbench.h
+*** tmp/glomosim-2.03/glomosim/application/jistbench.h	Wed Dec 31 19:00:00 1969
+--- 1rim/jist/glomosim-bench/application/jistbench.h	Thu May 15 08:35:08 2003
+***************
+*** 0 ****
+--- 1,36 ----
++ #ifndef _RIMON_H
++ #define _RIMON_H
++ 
++ #include "structmsg.h"
++ #include "driver.h"  // to get command-line arguments
++ 
++ #define MODE_NULL     0
++ #define MODE_INT      1
++ #define MODE_DOUBLE   2
++ #define MODE_STRING   3
++ #define MODE_MEM      4
++ 
++ #define MODE_NULL_STRING    "null"
++ #define MODE_INT_STRING     "int"
++ #define MODE_DOUBLE_STRING  "double"
++ #define MODE_STRING_STRING  "string"
++ #define MODE_MEM_STRING     "mem"
++ 
++ typedef struct glomo_app_jistbench_str
++ {
++   int n;       // number of events processed
++   int size;    // total benchmark size
++   int type;    // type of benchmark
++ } GlomoAppJistBench;
++ 
++ void
++ AppJistBenchInit(GlomoNode *nodePtr);
++ 
++ static GlomoAppJistBench *AppJistBenchNewJistBench(GlomoNode *nodePtr);
++ 
++ void AppLayerJistBench(GlomoNode *nodePtr, Message *msg);
++ 
++ void AppJistBenchFinalize(GlomoNode *nodePtr, GlomoAppJistBench *clientPtr);
++ 
++ #endif /* _CBR_CLIENT_H_ */
++ 
+diff -crN tmp/glomosim-2.03/glomosim/application/jistbench.pc 1rim/jist/glomosim-bench/application/jistbench.pc
+*** tmp/glomosim-2.03/glomosim/application/jistbench.pc	Wed Dec 31 19:00:00 1969
+--- 1rim/jist/glomosim-bench/application/jistbench.pc	Thu May 15 09:27:50 2003
+***************
+*** 0 ****
+--- 1,234 ----
++ //////////////////////////////////////////////////
++ // JIST (Java In Simulation Time) Project
++ // Timestamp: <jistbench.pc Thu 2003/05/15 09:27:50 barr pompom.cs.cornell.edu>
++ //
++ // Description: GlomoSim-Jist microbenchmark
++ //
++ 
++ #include <stdlib.h>
++ #include <stdio.h>
++ #include <string.h>
++ #include <assert.h>
++ 
++ #include "api.h"
++ #include "structmsg.h"
++ #include "fileio.h"
++ #include "message.h"
++ 
++ #include "application.h"
++ #include "app_util.h"
++ #include "jistbench.h"
++ #include "main.h"
++ 
++ void outputMemory()
++ {
++   char buf[5000];
++   FILE *f;
++   int readbytes;
++ 
++   f = fopen("/proc/self/status", "r");
++   assert(f);
++   readbytes = fread(buf, sizeof(char), 5000, f);
++   fwrite(buf, sizeof(char), readbytes, stdout);
++   fclose(f);
++ }
++ 
++ typedef struct
++ {
++   void *p;
++   unsigned id;
++   SplayTree splayTree;
++   GlomoPartition *partitionData;
++ } myGlomoNode;
++ 
++ //typedef GlomoNode myGlomoNode;
++ 
++ void AppJistBenchInit(GlomoNode *nodePtr)
++ {
++     GlomoAppJistBench *clientPtr;
++     Message *timerMsg;
++     clocktype startTime;
++     myGlomoNode **nodes;
++     int i;
++ 
++     if(JISTBENCH_ARGC<2)
++     {
++       printf("syntax: glomosim config-file benchmark-type num\n");
++       printf("\n");
++       printf(" where: benchmark-type = null, int, double, string, mem\n");
++       printf("        num            = number of events or entities\n");
++       assert(0);
++     }
++ 
++     printf("Initializing Glomosim-Jist benchmark\n");
++     startTime = GLOMO_ConvertToClock("0");
++     clientPtr = AppJistBenchNewJistBench(nodePtr);
++     assert(clientPtr);
++     clientPtr->n = 0;
++     clientPtr->size = atoi(JISTBENCH_ARGV[1]);
++     if(!strcmp(JISTBENCH_ARGV[0], MODE_NULL_STRING))
++     {
++       clientPtr->type = MODE_NULL;
++     }
++     else if(!strcmp(JISTBENCH_ARGV[0], MODE_INT_STRING))
++     {
++       clientPtr->type = MODE_INT;
++     }
++     else if(!strcmp(JISTBENCH_ARGV[0], MODE_DOUBLE_STRING))
++     {
++       clientPtr->type = MODE_DOUBLE;
++     }
++     else if(!strcmp(JISTBENCH_ARGV[0], MODE_STRING_STRING))
++     {
++       clientPtr->type = MODE_STRING;
++     }
++     else if(!strcmp(JISTBENCH_ARGV[0], MODE_MEM_STRING))
++     {
++       clientPtr->type = MODE_MEM;
++     }
++     else
++     {
++       printf("unrecognized mode type: %s\n", JISTBENCH_ARGV[0]);
++       assert(0);
++     }
++ 
++     printf("benchmark type: %s\n", JISTBENCH_ARGV[0]);
++     printf("benchmark size: %d\n", clientPtr->size);
++ 
++     if(clientPtr->type==MODE_NULL
++         || clientPtr->type==MODE_INT
++         || clientPtr->type==MODE_DOUBLE
++         || clientPtr->type==MODE_STRING)
++     {
++       // fire up first message
++       timerMsg = GLOMO_MsgAlloc(nodePtr, GLOMO_APP_LAYER, 
++           APP_JISTBENCH, MSG_APP_TimerExpired);
++       GLOMO_MsgSend(nodePtr, timerMsg, startTime);
++     }
++     else if(clientPtr->type==MODE_MEM)
++     {
++       // allocate nodes
++       printf("%d\n", sizeof(myGlomoNode));
++       nodes = (myGlomoNode **)malloc(clientPtr->size * sizeof(myGlomoNode*));
++       for(i=0; i<clientPtr->size; i++)
++       {
++         nodes[i] = (myGlomoNode *)malloc(sizeof(myGlomoNode));
++       }
++       // output system resources
++       outputMemory();
++       
++       // remove usual parsec output
++       exit(1);
++     }
++     else
++     {
++       printf("unrecognized mode type\n");
++       assert(0);
++     }
++ }
++ 
++ void AppJistBenchFinalize(GlomoNode *nodePtr, GlomoAppJistBench *clientPtr)
++ {
++     printf("Finalizing Glomosim-Jist benchmark\n");
++     /*
++     if (nodePtr->appData.appStats == TRUE)
++     {
++         AppCbrClientPrintStats(nodePtr, clientPtr);
++     }
++     */
++ }
++ 
++ static GlomoAppJistBench *AppJistBenchGetJistBench(GlomoNode *nodePtr)
++ {
++   AppInfo *appList;
++ 
++   for (appList = nodePtr->appData.appPtr; 
++       appList != NULL; 
++       appList = appList->appNext)
++   {
++     if (appList->appType == APP_JISTBENCH)
++     {
++       return (GlomoAppJistBench *) appList->appDetail;
++     }
++   }
++   return NULL;
++ }
++ 
++ 
++ static GlomoAppJistBench *
++ AppJistBenchNewJistBench(GlomoNode *nodePtr)
++ {
++     AppInfo *newApp;
++     GlomoAppJistBench *jistbench;
++ 
++     newApp = (AppInfo *) pc_malloc(sizeof(AppInfo));
++     assert(newApp);
++ 
++     jistbench = (GlomoAppJistBench *)pc_malloc(sizeof(GlomoAppJistBench));
++     assert(jistbench);
++ 
++     newApp->appType = APP_JISTBENCH;
++     newApp->appDetail = jistbench;
++     newApp->appNext = nodePtr->appData.appPtr;
++     nodePtr->appData.appPtr = newApp;
++ 
++     return jistbench;
++ }
++ 
++ 
++ void AppLayerJistBench(GlomoNode *nodePtr, Message *msg)
++ {
++   char clockStr[GLOMO_MAX_STRING_LENGTH];
++   char buf[GLOMO_MAX_STRING_LENGTH];
++   GlomoAppJistBench *clientPtr;
++ 
++   ctoa(simclock(), buf);
++ 
++   switch(msg->eventType)
++   {
++     case MSG_APP_TimerExpired:
++       {
++         clientPtr = AppJistBenchGetJistBench(nodePtr);
++         clientPtr->n++;
++ 
++         if(clientPtr->n < clientPtr->size)
++         {
++           Message *timerMsg;
++ 
++           timerMsg = GLOMO_MsgAlloc(nodePtr, GLOMO_APP_LAYER,
++               APP_JISTBENCH, MSG_APP_TimerExpired);
++           switch(clientPtr->type)
++           {
++             case MODE_NULL:
++               break;
++             case MODE_INT:
++               timerMsg->info = malloc(sizeof(int));
++               *((int *)timerMsg->info) = 1;
++               break;
++             case MODE_DOUBLE:
++               timerMsg->info = malloc(sizeof(double));
++               *((double *)timerMsg->info) = 1.0;
++               break;
++             case MODE_STRING:
++               timerMsg->info = malloc(sizeof(char)*200);
++               strcpy(timerMsg->info, "jist-benchmark");
++               break;
++             default:
++               printf("illegal message type\n");
++               assert(0);
++           }
++           GLOMO_MsgSend(nodePtr, timerMsg, 1);
++         }
++         break;
++       }
++     default:
++       ctoa(simclock(), buf);
++       printf("JistBench: at time %s, node %ld "
++           "received message of unknown type"
++           " %ld.\n", buf, nodePtr->nodeAddr, msg->eventType);
++       assert(FALSE);
++   }
++   if(msg->info) free(msg->info);
++   GLOMO_MsgFree(nodePtr, msg);
++ }
++ 
+diff -crN tmp/glomosim-2.03/glomosim/bin/app.conf 1rim/jist/glomosim-bench/bin/app.conf
+*** tmp/glomosim-2.03/glomosim/bin/app.conf	Thu Sep 13 18:06:16 2001
+--- 1rim/jist/glomosim-bench/bin/app.conf	Sun Apr 13 17:17:47 2003
+***************
+*** 223,232 ****
+  #     time have passed, and will "think" (remain idle) for at most 2 minutes
+  #     of simulation time, at a time.
+  
+! FTP 0 1 10 150S
+! TELNET 2 3 10S 150S
+  
+- CBR 18 16 10000 512   5S    70S 100S
+- CBR 10 28 10000 512 2.5S 82.49S 199S
+- CBR 21 0  10000 512 0.8S 91.39S 248S
+- CBR 14 17 10000 512 1.1S 107.8S 274S
+--- 223,236 ----
+  #     time have passed, and will "think" (remain idle) for at most 2 minutes
+  #     of simulation time, at a time.
+  
+! #FTP 0 1 10 150S
+! #TELNET 2 3 10S 150S
+! #
+! #CBR 18 16 10000 512   5S    70S 100S
+! #CBR 10 28 10000 512 2.5S 82.49S 199S
+! #CBR 21 0  10000 512 0.8S 91.39S 248S
+! #CBR 14 17 10000 512 1.1S 107.8S 274S
+! 
+! # glomosim-jist benchmark
+! JISTBENCH
+  
+diff -crN tmp/glomosim-2.03/glomosim/bin/config.in 1rim/jist/glomosim-bench/bin/config.in
+*** tmp/glomosim-2.03/glomosim/bin/config.in	Thu Sep 13 18:06:16 2001
+--- 1rim/jist/glomosim-bench/bin/config.in	Sun Apr 13 17:17:47 2003
+***************
+*** 304,310 ****
+  # Node:      9, Layer:  RadioNoCapture, Total number of collisions is 0
+  #
+  
+! APPLICATION-STATISTICS          YES
+  TCP-STATISTICS                  NO
+  UDP-STATISTICS                  NO
+  ROUTING-STATISTICS              NO
+--- 304,310 ----
+  # Node:      9, Layer:  RadioNoCapture, Total number of collisions is 0
+  #
+  
+! APPLICATION-STATISTICS          NO
+  TCP-STATISTICS                  NO
+  UDP-STATISTICS                  NO
+  ROUTING-STATISTICS              NO
+Binary files tmp/glomosim-2.03/glomosim/bin/tsma_code_gen and 1rim/jist/glomosim-bench/bin/tsma_code_gen differ
+Binary files tmp/glomosim-2.03/glomosim/bin/tsma_param_gen and 1rim/jist/glomosim-bench/bin/tsma_param_gen differ
+diff -crN tmp/glomosim-2.03/glomosim/include/application.h 1rim/jist/glomosim-bench/include/application.h
+*** tmp/glomosim-2.03/glomosim/include/application.h	Thu Sep 13 18:06:16 2001
+--- 1rim/jist/glomosim-bench/include/application.h	Sun Apr 13 17:17:47 2003
+***************
+*** 63,68 ****
+--- 63,70 ----
+      APP_HTTP_SERVER,
+      /* Rumorsim */
+      APP_RUMOR,
++     /* jist benchmarking */
++     APP_JISTBENCH,
+  
+      /* Routing Protocols */
+      APP_ROUTING_BELLMANFORD = IPPROTO_BELLMANFORD,
+diff -crN tmp/glomosim-2.03/glomosim/main/driver.h 1rim/jist/glomosim-bench/main/driver.h
+*** tmp/glomosim-2.03/glomosim/main/driver.h	Thu Sep 13 18:06:22 2001
+--- 1rim/jist/glomosim-bench/main/driver.h	Sun Apr 13 17:17:47 2003
+***************
+*** 47,52 ****
+--- 47,61 ----
+  #include "main.h"
+  #include "message.h"
+  
++ 
++ // JISTBENCH: quick hack to get command-line parameters through
++ // to micro-benchmark application... Command-line parameters are 
++ // just simpler to deal with than rewriting config files
++ 
++ extern int JISTBENCH_ARGC;
++ extern char** JISTBENCH_ARGV;
++ 
++ 
+  /*
+   * FUNCTION     DriverSendNeighborInfo
+   * PURPOSE      Send neighbor information between the two partitions.
+diff -crN tmp/glomosim-2.03/glomosim/main/driver.pc 1rim/jist/glomosim-bench/main/driver.pc
+*** tmp/glomosim-2.03/glomosim/main/driver.pc	Thu Sep 13 18:06:22 2001
+--- 1rim/jist/glomosim-bench/main/driver.pc	Sun Apr 13 17:17:47 2003
+***************
+*** 55,60 ****
+--- 55,66 ----
+  #include "driver.h"
+  #include "glomo.h"
+  
++ // JISTBENCH: quick hack to get command-line parameters through
++ // to micro-benchmark application... Command-line parameters are 
++ // just simpler to deal with than rewriting config files
++ 
++ int JISTBENCH_ARGC;
++ char** JISTBENCH_ARGV;
+  
+  int main(int argc, char**argv) {
+      FILE *fw;
+***************
+*** 142,147 ****
+--- 148,156 ----
+                  argv[0]);
+          assert(0); abort();
+      }
++ 
++     JISTBENCH_ARGC = argc-2;
++     JISTBENCH_ARGV = &argv[2];
+      
+      GLOMO_ReadFile(&nodeInput, argv[1]);
+  
+diff -crN tmp/glomosim-2.03/glomosim/main/glomo.pc 1rim/jist/glomosim-bench/main/glomo.pc
+*** tmp/glomosim-2.03/glomosim/main/glomo.pc	Thu Sep 13 18:06:22 2001
+--- 1rim/jist/glomosim-bench/main/glomo.pc	Sun Apr 13 17:17:47 2003
+***************
+*** 314,319 ****
+--- 314,320 ----
+      
+  
+  
++     /*
+      if (partitionData->firstNode != NULL) {
+          int    nodeCount = 0;
+          GlomoNode* nextNode = partitionData->firstNode;
+***************
+*** 344,349 ****
+--- 345,351 ----
+              assert(FALSE);
+          }
+      }
++     */
+  
+      /*
+       * Inform creator that we are ready.
+***************
+*** 371,376 ****
+--- 373,379 ----
+          /*
+           * Display the current simulation time.
+           */
++         /*
+          if ((partitionId == 1) && (simclock() >= NextSimtimePrintTime)) {
+              int PercentageDone;
+              char TimeStringInSecond[GLOMO_MAX_STRING_LENGTH];
+***************
+*** 390,395 ****
+--- 393,399 ----
+              fflush(stdout);
+              NextSimtimePrintTime = NextSimtimePrintTime + PrintSimTimeInterval; 
+          } 
++         */
+  
+          /* Determine the earliest regular and mobility event */
+          /* This time will be used to set a timeout. */
+***************
+*** 636,644 ****
+--- 640,650 ----
+              GLOMO_RadioLayer(node, msg);
+              break;
+          case GLOMO_MAC_LAYER:
++             break;
+              GLOMO_MacLayer(node, msg);
+              break;
+          case GLOMO_NETWORK_LAYER:
++             break;
+              GLOMO_NetworkLayer(node, msg);
+              break;
+          case GLOMO_TRANSPORT_LAYER:
+diff -crN tmp/glomosim-2.03/glomosim/main/makefile 1rim/jist/glomosim-bench/main/makefile
+*** tmp/glomosim-2.03/glomosim/main/makefile	Tue Feb 19 23:31:28 2002
+--- 1rim/jist/glomosim-bench/main/makefile	Sun Apr 13 17:17:47 2003
+***************
+*** 73,79 ****
+              ../application/gen_ftp_client.h ../application/gen_ftp_server.h \
+              ../application/cbr_client.h ../application/cbr_server.h \
+              ../application/nsdsdv.h \
+!             ../include/java_gui.h
+  
+  
+  
+--- 73,80 ----
+              ../application/gen_ftp_client.h ../application/gen_ftp_server.h \
+              ../application/cbr_client.h ../application/cbr_server.h \
+              ../application/nsdsdv.h \
+!             ../include/java_gui.h \
+! 						../application/jistbench.h
+  
+  
+  
+***************
+*** 145,151 ****
+              ../application/http_client.pc ../application/http_server.pc \
+              ../application/gen_ftp_client.pc ../application/gen_ftp_server.pc \
+              ../application/cbr_client.pc ../application/cbr_server.pc \
+!             ../mac/wiredlink.pc
+  
+  ALLFILES = $(HDRS) $(C_SRCS) $(C++_SRCS) $(PAR_FILES) Makefile
+  
+--- 146,153 ----
+              ../application/http_client.pc ../application/http_server.pc \
+              ../application/gen_ftp_client.pc ../application/gen_ftp_server.pc \
+              ../application/cbr_client.pc ../application/cbr_server.pc \
+!             ../mac/wiredlink.pc \
+! 						../application/jistbench.pc
+  
+  ALLFILES = $(HDRS) $(C_SRCS) $(C++_SRCS) $(PAR_FILES) Makefile
+  
+***************
+*** 188,194 ****
+  PARLIB = -lm
+  
+  # Dependencies
+! all:  $(SIM_EXEC) $(TSMA_CODE) $(TSMA_PARAM) $(RADIO_RANGE)
+  
+  .cpp.o:
+  	$(CTX) $(CFLAGS) -c $*.cpp -o $*.o
+--- 190,198 ----
+  PARLIB = -lm
+  
+  # Dependencies
+! # jist-benchmark: command-line hack compilation issue
+! #all:  $(SIM_EXEC) $(TSMA_CODE) $(TSMA_PARAM) $(RADIO_RANGE)
+! all:  $(SIM_EXEC) $(TSMA_CODE) $(TSMA_PARAM)
+  
+  .cpp.o:
+  	$(CTX) $(CFLAGS) -c $*.cpp -o $*.o

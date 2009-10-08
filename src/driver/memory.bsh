@@ -1,0 +1,91 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <memory.bsh Tue 2004/04/06 11:58:51 barr pompom.cs.cornell.edu>
+//
+
+// Copyright (C) 2004 by Cornell University
+// All rights reserved.
+// Refer to LICENSE for terms and conditions of use.
+
+void createNode(int i, Field field, Placement placement,
+    RadioInfo.RadioInfoShared radioInfoShared, Mapper protMap,
+    PacketLoss plIn, PacketLoss plOut)
+{
+  // radio
+  RadioNoise radio = 
+    new RadioNoiseIndep(i, radioInfoShared);
+  // mac
+  Mac802_11 mac = 
+    new Mac802_11(new MacAddress(i), radio.getRadioInfo());
+  // net
+  NetIp net = new NetIp(new NetAddress(i), protMap, plIn, plOut);
+  // trans
+  TransUdp udp = new TransUdp();
+  TransTcp tcp = new TransTcp();
+  // app
+  AppJava app = new AppJava(driver.udptest.class);
+  app.setUdpEntity(udp.getProxy());
+  AppJava appTcp = new AppJava(tcptest.class);
+  appTcp.setTcpEntity(tcp.getProxy());
+  // field hookup
+  field.addRadio(radio.getRadioInfo(), radio.getProxy(), placement.getNextLocation());
+  // radio hookup
+  radio.setFieldEntity(field.getProxy());
+  radio.setMacEntity(mac.getProxy());
+  // net hookup
+  byte intId = net.addInterface(mac.getProxy());
+  net.setProtocolHandler(Constants.NET_PROTOCOL_UDP, udp.getProxy());
+  // mac hookup
+  mac.setRadioEntity(radio.getProxy());
+  mac.setNetEntity(net.getProxy(), intId);
+  // trans hookup
+  udp.setNetEntity(net.getProxy());
+  tcp.setNetEntity(net.getProxy());
+}
+
+
+void createSim(int nodes)
+{
+  System.out.println("start simulation");
+  // field
+  Location bounds = new Location.Location2D(200, 200);
+  Field field = new Field(bounds);
+  // placement
+  Placement placement = new Placement.Random(bounds);
+  // radio info
+  RadioInfo.RadioInfoShared radioInfoShared = 
+    RadioInfo.createShared(
+        Constants.FREQUENCY_DEFAULT, 
+        Constants.BANDWIDTH_DEFAULT,
+        Constants.TRANSMIT_DEFAULT, 
+        Constants.GAIN_DEFAULT,
+        Util.fromDB(Constants.SENSITIVITY_DEFAULT), 
+        Util.fromDB(Constants.THRESHOLD_DEFAULT),
+        Constants.TEMPERATURE_DEFAULT, 
+        Constants.TEMPERATURE_FACTOR_DEFAULT, 
+        Constants.AMBIENT_NOISE_DEFAULT);
+  // protocol mapper
+  Mapper protMap = new Mapper(Constants.NET_PROTOCOL_MAX);
+  protMap.mapToNext(Constants.NET_PROTOCOL_UDP);
+  // packet loss
+  PacketLoss pl = new PacketLoss.Zero();
+  // nodes
+  for(int i=0; i<nodes; i++)
+  {
+    if(i%1000==0)
+      System.out.print(".");
+    createNode(i, field, placement, radioInfoShared, protMap, pl, pl);
+  }
+  System.out.println();
+  Util.printMemoryStats();
+}
+
+if(bsh.args.length<2)
+{
+  System.out.println("syntax: memory.bsh <nodes>");
+  return;
+}
+int nodes = Integer.valueOf(bsh.args[1]).intValue();
+System.out.println("Creating "+nodes+" nodes");
+createSim(nodes);
+

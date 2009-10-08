@@ -1,0 +1,5 @@
+#!/bin/bash
+JIST_DIR=`dirname $0`/../
+JIST_SRC=${JIST_DIR}/src
+JIST_LIBS=${JIST_DIR}/libs/bcel.jar:${JIST_DIR}/libs/bsh.jar:${JIST_DIR}/libs/jargs.jar:${JIST_DIR}/libs/log4j.jar:${JIST_DIR}/libs/jython.jar
+exec java -classpath ${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} jist.runtime.RewriterFlow $*

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+JISTDUMP=/tmp/dump.memprof
+JIST_DIR=`dirname $0`/../
+JIST_SRC=${JIST_DIR}/src
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${JIST_SRC}/memprof
+export LD_LIBRARY_PATH
+JIST_LIBS=${JIST_DIR}/libs/bcel.jar:${JIST_DIR}/libs/bsh.jar:${JIST_DIR}/libs/jargs.jar:${JIST_DIR}/libs/log4j.jar:${JIST_DIR}/libs/jython.jar
+
+java -Xrunmemprof:${JISTDUMP} -Xmx500000000 -server -enableassertions -cp ${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} jist.runtime.Main $* \
+&& ${JIST_SRC}/memprof/memprof.py ${JISTDUMP} \
+&& rm ${JISTDUMP}
+

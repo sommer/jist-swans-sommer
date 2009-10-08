@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Puppy Crawl//DTD Check Configuration 1.1//EN"
+    "http://www.puppycrawl.com/dtds/configuration_1_1.dtd">
+
+<module name="Checker">
+    <module name="PackageHtml"/>
+    <module name="NewlineAtEndOfFile"/>
+    <module name="TreeWalker">
+        <module name="JavadocType">
+          <property name="authorFormat" value=".+"/>
+        </module>
+        <module name="JavadocMethod"/>
+        <module name="JavadocVariable"/>
+        <module name="JavadocStyle"/>
+
+        <!--
+        <module name="ConstantName"/>
+        <module name="LocalFinalVariableName"/>
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="MethodName"/>
+        <module name="PackageName"/>
+        <module name="ParameterName"/>
+        <module name="StaticVariableName"/>
+        <module name="TypeName"/>
+        -->
+
+        <module name="AvoidStarImport">
+          <property name="excludes" value="java.io,java.util,java.net,java.rmi,java.rmi.server,java.rmi.registry,java.lang.reflect,jargs.gnu,org.apache.bcel,org.apache.bcel.generic,org.apache.bcel.classfile,org.apache.bcel.verifier,org.apache.bcel.verifier.structurals,org.apache.bcel.verifier.exc,org.apache.log4j"/>
+        </module>
+        <!-- <module name="IllegalImport"/> -->
+        <module name="RedundantImport"/>
+        <module name="UnusedImports"/>
+
+        <!--
+        <module name="FileLength"/>
+        <module name="LineLength">
+          <property name="max" value="120"/>
+        </module>
+        <module name="MethodLength"/>
+        <module name="ParameterNumber"/>
+        -->
+
+        <module name="ParenPad"/>
+        <module name="TypecastParenPad"/>
+        <module name="TabCharacter"/>
+
+        <module name="ModifierOrder"/>
+        <module name="RedundantModifier"/>
+
+        <module name="LeftCurly">
+          <property name="option" value="nl"/>
+        </module>
+
+        <module name="EmptyStatement"/>
+        <module name="EqualsHashCode"/>
+        <module name="InnerAssignment"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+        <!--
+        <module name="MagicNumber"/>
+        <module name="RedundantThrows"/>
+        <module name="NestedIfDepth"/>
+        <module name="ReturnCount"/>
+        -->
+
+        <!--
+        <module name="DesignForExtension"/>
+        <module name="FinalClass"/>
+        <module name="HideUtilityClassConstructor"/>
+        <module name="InterfaceIsType"/>
+        <module name="VisibilityModifier"/>
+        -->
+
+        <!-- Miscellaneous other checks.                   -->
+        <!-- See http://checkstyle.sf.net/config_misc.html -->
+        <module name="ArrayTypeStyle"/>
+        <module name="TodoComment"/>
+        <module name="UpperEll"/>
+
+    </module>
+</module>

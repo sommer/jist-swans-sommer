@@ -1,0 +1,6 @@
+# glomosim benchmarking
+diff -crN ~/glomosim/glomosim ~/1rim/jist/glomosim-bench > glomosim-jistbench.patch
+patch -p 4 < glomosim-jistbench.patch
+
+# parsec benchmarking
+see various programs in parsec directory

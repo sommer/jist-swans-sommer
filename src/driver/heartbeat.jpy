@@ -1,0 +1,106 @@
+##################################################
+# JIST (Java In Simulation Time) Project
+# Timestamp: <heartbeat.jpy Tue 2005/05/17 23:26:39 barr rimbase.rimonbarr.com>
+#
+
+# Copyright (C) 2004 by Cornell University
+# All rights reserved.
+# Refer to LICENSE for terms and conditions of use.
+
+# constants
+PAUSE_TIME = 30
+GRANULARITY = 10
+MIN_SPEED = 2
+MAX_SPEED = 10
+
+import sys
+import jist.swans.Constants as Constants
+import jist.swans.misc.Util as Util
+import jist.swans.misc.Mapper as Mapper
+import jist.swans.misc.Location as Location
+import jist.swans.field.Field as Field
+import jist.swans.field.Placement as Placement
+import jist.swans.field.Mobility as Mobility
+import jist.swans.field.Spatial as Spatial
+import jist.swans.field.Fading as Fading
+import jist.swans.field.PathLoss as PathLoss
+import jist.swans.radio.RadioNoiseIndep as RadioNoiseIndep
+import jist.swans.radio.RadioInfo as RadioInfo
+import jist.swans.mac.MacAddress as MacAddress
+import jist.swans.mac.MacDumb as MacDumb 
+import jist.swans.mac.Mac802_11 as Mac802_11 
+import jist.swans.net.NetAddress as NetAddress
+import jist.swans.net.NetIp as NetIp
+import jist.swans.net.PacketLoss as PacketLoss
+import jist.swans.app.AppHeartbeat as AppHeartbeat
+
+def createNode(i, field, placement, radioInfoShared, protMap, plIn, plOut):
+  # create entities
+  radio = RadioNoiseIndep(i, radioInfoShared)
+  mac = MacDumb(MacAddress(i), radio.getRadioInfo())
+  # mac = Mac802_11(MacAddress(i), radio.getRadioInfo())
+  net = NetIp(NetAddress(i), protMap, plIn, plOut)
+  app = AppHeartbeat(i, 1)
+
+  # hookup entities
+  field.addRadio(radio.getRadioInfo(), radio.getProxy(), placement.getNextLocation())
+  field.startMobility(radio.getRadioInfo().getUnique().getID());
+  radio.setFieldEntity(field.getProxy())
+  radio.setMacEntity(mac.getProxy())
+  mac.setRadioEntity(radio.getProxy())
+  intId = net.addInterface(mac.getProxy())
+  mac.setNetEntity(net.getProxy(), intId)
+  net.setProtocolHandler(Constants.NET_PROTOCOL_HEARTBEAT, app.getNetProxy())
+  app.setNetEntity(net.getProxy());
+  app.getAppProxy().run();
+
+def createSim(nodes, length):
+  bounds = Location.Location2D(length, length)
+  placement = Placement.Random(bounds)
+  mobility = Mobility.RandomWaypoint(bounds, PAUSE_TIME, GRANULARITY, MAX_SPEED, MIN_SPEED);
+  spatial = Spatial.HierGrid(bounds, 5)
+  fading = Fading.None()
+  pathloss = PathLoss.FreeSpace()
+  field = Field(spatial, fading, pathloss, mobility, Constants.PROPAGATION_LIMIT_DEFAULT);
+
+  radioInfoShared = RadioInfo.createShared(
+        Constants.FREQUENCY_DEFAULT, Constants.BANDWIDTH_DEFAULT,
+        Constants.TRANSMIT_DEFAULT, Constants.GAIN_DEFAULT,
+        Util.fromDB(Constants.SENSITIVITY_DEFAULT), Util.fromDB(Constants.THRESHOLD_DEFAULT),
+        Constants.TEMPERATURE_DEFAULT, Constants.TEMPERATURE_FACTOR_DEFAULT, Constants.AMBIENT_NOISE_DEFAULT)
+
+  protMap = Mapper(Constants.NET_PROTOCOL_MAX)
+  protMap.mapToNext(Constants.NET_PROTOCOL_HEARTBEAT)
+  pl = PacketLoss.Zero()
+
+  for i in range(nodes):
+    createNode(i, field, placement, radioInfoShared, protMap, pl, pl)
+
+  return field
+
+def main():
+  args = sys.argv[1:]
+  if len(args)!=3:
+    print
+    print 'syntax: heartbeat.jpy <nodes> <length> <time>'
+    print '    eg. swans --jpy driver/heartbeat.jpy 5 100 5'
+    print
+    return
+  nodes, length, time = int(args[0]), int(args[1]), int(args[2])
+  density = nodes / (length/1000.0 * length/1000.0)
+  print 'nodes   = %s' % nodes
+  print 'size    = %s x %s' % (length, length)
+  print 'time    = %s seconds' % time
+  print 'density = %2.1f nodes/km^2' % density
+  print 'Creating simulation...',
+  f = createSim(nodes, length)
+  print 'done.'
+
+  print 'Average density = %s/km^2' % (f.computeDensity()*1000*1000)
+  print 'Average sensing = %s' % f.computeAvgConnectivity(1)
+  print 'Average receive = %s' % f.computeAvgConnectivity(0)
+  JistAPI.endAt(time*Constants.SECOND)
+
+if __name__=='main':
+  main()
+

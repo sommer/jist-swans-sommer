@@ -1,0 +1,7 @@
+#!/bin/sh
+JIST_DIR=`dirname $0`/../
+JIST_SRC=${JIST_DIR}/src
+JIST_LIBS=${JIST_DIR}/libs/bcel.jar:${JIST_DIR}/libs/bsh.jar:${JIST_DIR}/libs/jargs.jar:${JIST_DIR}/libs/log4j.jar:${JIST_DIR}/libs/jython.jar
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${JIST_SRC}/jist/swans/misc
+export LD_LIBRARY_PATH
+exec java -Xrunhprof:cpu=samples,depth=10 -server -cp ${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} jist.runtime.Main $*

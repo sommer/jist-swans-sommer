@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Main-Class: jist.runtime.Main jist.swans.Main
+Class-Path: bcel.jar jargs.jar log4j.jar bsh.jar jython.jar jist.jar
+Name: jist/swans/
+Sealed: true
+

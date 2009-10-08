@@ -1,0 +1,113 @@
+
+<!-- 
+This is the build script for the JIST-SWANS tool.
+@author Piotr Bojko
+-->
+
+<project name="JIST-SWANS" default="compile" basedir=".">
+
+	<target name="init">
+		<property name="name" value="JIST-SWANS" />
+		<property name="version" value="1.06" />
+		<property name="version_postfix" value=".1.0" />
+		<property name="appendit" value="1_0" />
+		<property name="year" value="2006" />
+		<property name="copyright" value="Copyright &#169; ${year} Piotr Bojko" />
+		<property name="debug" value="on" />
+		<property name="optimize" value="on" />
+		<property name="deprecation" value="off" />
+
+		<property name="dir.build" value="build" />
+		<property name="dir.dist" value="dist" />
+		<property name="dir.lib" value="libs" />
+		<property name="dir.src" value="src" />
+
+		<path id="project.class.path">
+			<fileset dir="${dir.lib}">
+				<include name="**/*.jar" />
+				<include name="**/*.zip" />
+			</fileset>
+		</path>
+
+		<filter token="year" value="${year}" />
+		<filter token="version" value="${version}" />
+		<filter token="date" value="${TODAY}" />
+		<filter token="log" value="true" />
+		<filter token="verbose" value="true" />
+	</target>
+
+	<target name="prepare" depends="init">
+		<mkdir dir="${dir.build}" />
+		<mkdir dir="${dir.dist}" />
+		<tstamp />
+		<exec executable="hostname" outputproperty="user.host" />
+	</target>
+	
+    <target name="native2ascii" depends="prepare">
+        <native2ascii src="${dir.src}" dest="${dir.build}" encoding="UTF-8">
+            <include name="**/*.properties"/>
+       	</native2ascii>
+    </target>
+
+	<target name="compile" depends="prepare">
+		<javac srcdir="${dir.src}" destdir="${dir.build}" debug="${debug}" deprecation="${deprecation}" optimize="${optimize}" encoding="UTF-8" includeantruntime="false">
+			<classpath refid="project.class.path" />
+		</javac>
+	</target>
+	
+	<target name="rmic_jist" depends="prepare, compile">
+		<rmic base="${dir.build}" includes="${dir.build}/jist.runtime.Controller">
+		</rmic>
+	</target>
+	
+	<target name="jist_jar" depends="compile, rmic_jist">
+		<jar destfile="${dir.dist}/jist.jar" basedir="${dir.build}" includes="jist/**" excludes="jist/swans/**">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Main-Class" value="jist.runtime.Main"/>
+				<attribute name="Class-Path" value="bcel.jar jargs.jar log4j.jar bsh.jar jython.jar "/>
+				<section name="jist/runtime">
+					<attribute name="Sealed" value="true"/>
+				</section>
+			</manifest>
+		</jar>
+	</target>
+	
+	<target name="swans_jar" depends="compile">
+		<jar destfile="${dir.dist}/swans.jar" basedir="${dir.build}" includes="jist/swans/**, driver/**">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Main-Class" value="jist.runtime.Main jist.swans.Main"/>
+				<attribute name="Class-Path" value="bcel.jar jargs.jar log4j.jar bsh.jar jython.jar "/>
+				<section name="jist/swans/">
+					<attribute name="Sealed" value="true"/>
+				</section>
+			</manifest>
+		</jar>
+	</target>
+	
+	<target name="dist" depends="jist_jar, swans_jar">
+		<copy todir="${dir.dist}">
+			<fileset dir="${dir.lib}">
+				<include name="**/*.jar" />
+				<include name="**/*.zip" />
+			</fileset>
+		</copy>
+	</target>
+
+    <target name="clean" depends="init">
+        <delete dir="${dir.build}"/>
+        <delete dir="${dir.dist}"/>
+        <delete>
+            <fileset dir="." includes="**/*~" defaultexcludes="no"/>
+        </delete>
+    </target>
+	
+</project>
+<!-- End build.xml -->
+
+
+
+
+
+

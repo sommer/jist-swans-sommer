@@ -1,0 +1,395 @@
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/Makefile ns2/ns-2.26/Makefile
+*** tmp/ns-allinone-2.26/ns-2.26/Makefile	Sun May 18 21:11:40 2003
+--- ns2/ns-2.26/Makefile	Tue May 13 02:05:23 2003
+***************
+*** 130,140 ****
+  	diffusion3/apps/gear/geo-tools.o \
+  	nix/hdr_nv.o nix/classifier-nix.o \
+  	nix/nixnode.o nix/nixvec.o \
+  	nix/nixroute.o
+  
+! NS_TCL_LIB_STL = tcl/lib/ns-diffusion.tcl 
+  
+  
+  
+  # WIN32: uncomment the following line to include specific make for VC++
+  # !include <conf/makefile.win>
+--- 130,142 ----
+  	diffusion3/apps/gear/geo-tools.o \
+  	nix/hdr_nv.o nix/classifier-nix.o \
+  	nix/nixnode.o nix/nixvec.o \
+  	nix/nixroute.o
+  
+! NS_TCL_LIB_STL = \
+! 	tcl/lib/ns-diffusion.tcl  \
+! 	jist/jist.tcl
+  
+  
+  
+  # WIN32: uncomment the following line to include specific make for VC++
+  # !include <conf/makefile.win>
+***************
+*** 273,283 ****
+  	linkstate/ls.o linkstate/rtProtoLS.o \
+  	pgm/classifier-pgm.o pgm/pgm-agent.o pgm/pgm-sender.o \
+  	pgm/pgm-receiver.o mcast/rcvbuf.o \
+  	mcast/classifier-lms.o mcast/lms-agent.o mcast/lms-receiver.o \
+  	mcast/lms-sender.o \
+! 	$(OBJ_STL)
+  
+  
+  # don't allow comments to follow continuation lines
+  
+  #  mac-csma.o mac-multihop.o\
+--- 275,286 ----
+  	linkstate/ls.o linkstate/rtProtoLS.o \
+  	pgm/classifier-pgm.o pgm/pgm-agent.o pgm/pgm-sender.o \
+  	pgm/pgm-receiver.o mcast/rcvbuf.o \
+  	mcast/classifier-lms.o mcast/lms-agent.o mcast/lms-receiver.o \
+  	mcast/lms-sender.o \
+! 	$(OBJ_STL) \
+! 	jist/jist.o
+  
+  
+  # don't allow comments to follow continuation lines
+  
+  #  mac-csma.o mac-multihop.o\
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/events.tcl ns2/ns-2.26/jist/events.tcl
+*** tmp/ns-allinone-2.26/ns-2.26/jist/events.tcl	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/events.tcl	Thu May 15 00:36:27 2003
+***************
+*** 0 ****
+--- 1,37 ----
++ #
++ # JiST project
++ # Author: Rimon Barr <barr+jist@cs.cornell.edu>
++ # 
++ # Measure the event throughput of:
++ #   - C calls (via the scheduler)
++ #   - Tcl calls
++ #
++ 
++ # check arguments
++ if {$argc < 2} {
++   puts "syntax: ns events.tcl \"tcl\"|\"c\" <num>"
++   exit
++ }
++ 
++ set time [clock clicks -milliseconds]
++ if {[lindex $argv 0] == "tcl"} {
++   # Tcl calls
++   puts "tcl [lindex $argv 1]"
++   set foo [new JistBenchEvents]
++   for {set x [lindex $argv 1]} {$x>0} {incr x -1} {
++     $foo callonce
++   }
++ } elseif {[lindex $argv 0] == "c"} {
++   # C calls
++   set s [new Simulator]
++   set foo [new JistBenchEvents]
++   $foo set events_ [lindex $argv 1]
++   $foo schedulefirst
++   puts "c [$foo set events_]"
++   $s run
++ } else {
++   puts "syntax: ns events.tcl \"tcl\"|\"c\" <num>"
++   exit
++ }
++ set time2 [clock clicks -milliseconds] 
++ puts "time in ms: [expr ($time2-$time)]"
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/jist.cc ns2/ns-2.26/jist/jist.cc
+*** tmp/ns-allinone-2.26/ns-2.26/jist/jist.cc	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/jist.cc	Fri May 16 01:57:59 2003
+***************
+*** 0 ****
+--- 1,148 ----
++ /*
++  * JiST project
++  * Author: Rimon Barr <barr+jist@cs.cornell.edu>
++  * 
++  * Jist Benchmarking code
++  */
++ 
++ #include "jist.h"
++ 
++ #include "scheduler.h"
++ #include "delay.h"
++ 
++ //////////////////////////////////////////////////
++ // statics
++ //
++ 
++ static class JistBenchEventsClass : public TclClass {
++   public:
++     JistBenchEventsClass() : TclClass("JistBenchEvents") {}
++     TclObject* create(int argc, const char*const* argv) {
++       return (new JistBenchEvents);
++     }
++ } class_jist_bench_events;
++ 
++ static class JistBenchMemEntityClass : public TclClass {
++   public:
++     JistBenchMemEntityClass() : TclClass("JistBenchMemEntity") {}
++     TclObject* create(int argc, const char*const* argv) {
++       return (new JistBenchMemEntity);
++     }
++ } class_jist_bench_mem_entity;
++ 
++ static class JistBenchMemEventClass : public TclClass {
++   public:
++     JistBenchMemEventClass() : TclClass("JistBenchMemEvent") {}
++     TclObject* create(int argc, const char*const* argv) {
++       return (new JistBenchMemEvent);
++     }
++ } class_jist_bench_mem_event;
++ 
++ //////////////////////////////////////////////////
++ // JistBenchEvents
++ //
++ 
++ JistBenchEvents::JistBenchEvents()
++ {
++ 	bind("events_", &events_);
++ }
++ 
++ int JistBenchEvents::command(int argc, const char*const* argv) 
++ {
++   if (argc==2)
++   {
++     if(strcmp(argv[1], "schedulefirst")==0)
++     {
++       schedulefirst();
++       return TCL_OK;
++     }
++     else if(strcmp(argv[1], "callonce")==0)
++     {
++       callonce();
++       return TCL_OK;
++     }
++   }
++ 	return TclObject::command(argc, argv);
++ }
++ 
++ void JistBenchEvents::schedulefirst()
++ {
++ 	Scheduler& s = Scheduler::instance();
++   Event *ev = new Event;
++   s.schedule(this, ev, 0);
++ }
++ 
++ void JistBenchEvents::callonce()
++ {
++   // no-op
++ }
++ 
++ void JistBenchEvents::handle(Event* ev) 
++ {
++   //printf("handling event at time: %f\n", ev->time_);
++   delete ev;
++   if(events_)
++   {
++     Scheduler& s = Scheduler::instance();
++     ev = new Event;
++     s.schedule(this, ev, 1);
++     events_--;
++   }
++ }
++ 
++ void JistBenchEvents::recv(Packet *p, Handler *h)
++ {
++   printf("jistbenchevents receive called\n");
++ }
++ 
++ //////////////////////////////////////////////////
++ // JistBenchMemEntity
++ //
++ 
++ JistBenchMemEntity::JistBenchMemEntity()
++ {
++ }
++ 
++ 
++ //////////////////////////////////////////////////
++ // JistBenchMemEvent
++ //
++ 
++ JistBenchMemEvent::JistBenchMemEvent()
++ {
++ }
++ 
++ int JistBenchMemEvent::command(int argc, const char*const* argv) 
++ {
++   if (argc==3)
++   {
++     if(strcmp(argv[1], "schedule")==0)
++     {
++       schedule(atol(argv[2]));
++       return TCL_OK;
++     }
++   }
++ 	return TclObject::command(argc, argv);
++ }
++ 
++ void JistBenchMemEvent::schedule(long events)
++ {
++ 	Scheduler& s = Scheduler::instance();
++   printf("Scheduling %ld events\n", events);
++   for(int i=0; i<events; i++)
++   {
++     Event *ev = new Event();
++     s.schedule(this, ev, i);
++   }
++ }
++ 
++ void JistBenchMemEvent::handle(Event* ev) 
++ {
++   printf("handling event at time: %f\n", ev->time_);
++   delete ev;
++ }
++ 
++ void JistBenchMemEvent::recv(Packet *p, Handler *h)
++ {
++   printf("jistbenchmemevent receive called\n");
++ }
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/jist.h ns2/ns-2.26/jist/jist.h
+*** tmp/ns-allinone-2.26/ns-2.26/jist/jist.h	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/jist.h	Fri May 16 01:57:36 2003
+***************
+*** 0 ****
+--- 1,52 ----
++ /*
++  * JiST project
++  * Author: Rimon Barr <barr+jist@cs.cornell.edu>
++  * 
++  * Jist Benchmarking code (header)
++  */
++ 
++ #ifndef __jist_h__
++ #define __jist_h__
++ 
++ #include <tclcl.h>
++ #include <assert.h>
++ #include "object.h"
++ #include "packet.h"
++ #include "connector.h"
++ 
++ class JistBenchEvents : public NsObject 
++ {
++   protected:
++     double events_;
++   public:
++     JistBenchEvents();
++     void handle(Event* e);
++     void recv(Packet *p, Handler *h);
++     // events
++     void schedulefirst();
++     void callonce();
++     // variables
++     double events() { return events_; }
++   protected:
++     int command(int argc, const char*const* argv);
++ };
++ 
++ class JistBenchMemEntity : public TclObject
++ {
++   public:
++     JistBenchMemEntity();
++ };
++ 
++ class JistBenchMemEvent : public NsObject 
++ {
++   public:
++     JistBenchMemEvent();
++     void handle(Event* e);
++     void recv(Packet *p, Handler *h);
++     // events
++     void schedule(long events);
++   protected:
++     int command(int argc, const char*const* argv);
++ };
++ 
++ #endif
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/jist.tcl ns2/ns-2.26/jist/jist.tcl
+*** tmp/ns-allinone-2.26/ns-2.26/jist/jist.tcl	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/jist.tcl	Tue May 13 23:12:37 2003
+***************
+*** 0 ****
+--- 1,15 ----
++ #
++ # JiST project
++ # Author: Rimon Barr <barr+jist@cs.cornell.edu>
++ # 
++ # ns2 Tcl intialization for JiST benchmark
++ #
++ 
++ JistBenchEvents set events_ 0
++ JistBenchEvents set debug_  0
++ 
++ JistBenchMemEntity set debug_ 0
++ 
++ JistBenchMemEvent set events_ 0
++ JistBenchMemEvent set debug_ 0
++ 
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/mem_entity.tcl ns2/ns-2.26/jist/mem_entity.tcl
+*** tmp/ns-allinone-2.26/ns-2.26/jist/mem_entity.tcl	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/mem_entity.tcl	Tue May 13 22:55:41 2003
+***************
+*** 0 ****
+--- 1,25 ----
++ #
++ # JiST project
++ # Author: Rimon Barr <barr+jist@cs.cornell.edu>
++ # 
++ # Measure the memory consumption of a TclObject
++ # -- the smallest unit that ns allocates for anything.
++ #
++ 
++ # check arguments
++ if {$argc < 1} {
++   puts "syntax: ns mem_entity.tcl <num>"
++   exit
++ }
++ 
++ # allocate objects
++ puts "Allocating [lindex $argv 0] TclObjects"
++ for {set x [lindex $argv 0]} {$x>0} {incr x -1} {
++   new JistBenchMemEntity
++ }
++ 
++ # dump memory consumption
++ set f [open "/proc/self/status"]
++ puts [read $f]
++ close $f
++ 
+diff -r -P -C 5 tmp/ns-allinone-2.26/ns-2.26/jist/mem_events.tcl ns2/ns-2.26/jist/mem_events.tcl
+*** tmp/ns-allinone-2.26/ns-2.26/jist/mem_events.tcl	Wed Dec 31 19:00:00 1969
+--- ns2/ns-2.26/jist/mem_events.tcl	Fri May 16 01:55:04 2003
+***************
+*** 0 ****
+--- 1,26 ----
++ #
++ # JiST project
++ # Author: Rimon Barr <barr+jist@cs.cornell.edu>
++ # 
++ # Measure the memory consumption of a scheduled event
++ #
++ 
++ # check arguments
++ if {$argc < 1} {
++   puts "syntax: ns mem_events.tcl <num>"
++   exit
++ }
++ 
++ # schedule events
++ set s [new Simulator]
++ set foo [new JistBenchMemEvent]
++ $foo schedule [lindex $argv 0]
++ 
++ # dump memory consumption
++ set f [open "/proc/self/status"]
++ puts [read $f]
++ close $f
++ 
++ # run through events
++ #$s run
++ 

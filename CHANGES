@@ -1,0 +1,61 @@
+v1.0.6
+  - Rewriter.isEntity returns false for interfaces
+  - turned off UDP info output in default jist.properties
+  - implemented jist.swans.app.lang.SimtimeThread
+      see driver.threaded for an example
+  - implemented thread.join()
+
+v1.0.5
+  - JistAPI.sleepBlock: implemented blocking sleep in API for convenience
+
+v1.0.4
+  - shortened filenames of cached continuation classes
+  - throw meaningful NoSuchMethod exception when proxy entity of 
+    wrong type provided as an event target
+  - do not compute flow of native methods
+  - check for uninitialized objects on continuation stack
+  - throw meaningful exception early if tcp/udp entity has not been set 
+    within the AppJava application context
+  - fix: jist.swans.Constants.BANDWIDTH_DEFAULT = 1e6, because 
+    Mb = 10^6 b! Thanks to David Choffnes for reporting this 
+    embarrasing error.
+  - fixes to Mac802.11 suggested by David Choffnes to take care of some common
+    exceptions that occur during unicast operation. still need to verify
+    entire unicast functionality.
+
+v1.0.3
+  - JistAPI.DoNotRewrite tag added
+  - fix: RadioNoiseAdditive SNR calculation (reported by Matthias Wille)
+  - more meaningful error message when detecting a return address
+    on a stack to be saved for continuation.
+  - jist/swans/route/RouteDsr: enum is java 1.5 keyword
+  - fix: DoNotRewrite disables JiST... and now also SWANS(!) rewriting
+
+v1.0.2
+  - swans.Rewriter: inhibit method signature changes to methods outside the
+    SWANS or application codebase (reported by Gabi Kliot)
+  - RadioNoiseAdditive: properly initialize total power to background noise
+  - RadioNoiseIndep: consider background noise (reported by Einar Vollset),
+    reducing the effective transmission range when using default radio
+    parameters
+  - renamed/added/cleaned up some examples in driver directory
+  - NetIp: promisc mode packets processed like any other packet
+  - fix: in RadioNoiseIndep (line 137) due to Gabi Kliot: only set mode to
+    idle if signals==0
+  - change jist/swans/misc/makefile to ignore performance-enhancing native
+    library compilation errors
+  - fix: NullPointerException in classloader -> ClassNotFoundException
+  - fix: data flow analysis modified to ignore JSR return addresses
+  - fix: jump target lost during rewrite when immediatelly before blocking
+    call (reported by Einar Vollset)
+
+v1.0.1
+  - added sleep functionality/mode to radios, requested by Ivan Lysiuk
+  - converted jist.swans.net.MessageQueue into an interface to allow multiple
+    queue implementation, requested by Ivan Lysiuk
+  - minor bug in RadioNoiseIndep.setThresholdSNR reported by Thomas Bernoulli
+  - guilog functionality by Mark Fong
+  - minor touchups, commenting, etc.
+
+v1.0.0
+  - Intial release of JiST and SWANS

@@ -1,0 +1,86 @@
+##################################################
+# JIST (Java In Simulation Time) Project
+# Timestamp: <memory.jpy Mon 2005/07/11 08:58:21 barr rimbase.rimonbarr.com>
+#
+
+# Copyright (C) 2004 by Cornell University
+# All rights reserved.
+# Refer to LICENSE for terms and conditions of use.
+
+# constants
+FIELD_X = 200
+FIELD_Y = 200
+
+import sys
+import jist.swans.Constants as Constants
+import jist.swans.misc.Util as Util
+import jist.swans.misc.Mapper as Mapper
+import jist.swans.field.Field as Field
+import jist.swans.misc.Location as Location
+import jist.swans.field.Placement as Placement
+import jist.swans.radio.RadioNoiseIndep as RadioNoiseIndep
+import jist.swans.radio.RadioInfo as RadioInfo
+import jist.swans.mac.MacAddress as MacAddress
+import jist.swans.mac.Mac802_11 as Mac802_11 
+import jist.swans.net.NetAddress as NetAddress
+import jist.swans.net.NetIp as NetIp
+import jist.swans.net.PacketLoss as PacketLoss
+import jist.swans.trans.TransUdp as TransUdp
+import jist.swans.trans.TransTcp as TransTcp
+import jist.swans.app.AppJava as AppJava
+
+def createNode(i, field, placement, radioInfoShared, protMap, plIn, plOut):
+  # create entities
+  radio = RadioNoiseIndep(i, radioInfoShared)
+  mac = Mac802_11(MacAddress(i), radio.getRadioInfo())
+  net = NetIp(NetAddress(i), protMap, plIn, plOut)
+  udp = TransUdp()
+  tcp = TransTcp()
+  app = AppJava("driver.udp")
+
+  # hookup entities
+  field.addRadio(radio.getRadioInfo(), radio.getProxy(), placement.getNextLocation())
+  radio.setFieldEntity(field.getProxy())
+  radio.setMacEntity(mac.getProxy())
+  intId = net.addInterface(mac.getProxy())
+  net.setProtocolHandler(Constants.NET_PROTOCOL_UDP, udp.getProxy())
+  mac.setRadioEntity(radio.getProxy())
+  mac.setNetEntity(net.getProxy(), intId)
+  udp.setNetEntity(net.getProxy())
+  tcp.setNetEntity(net.getProxy())
+  app.setUdpEntity(udp.getProxy())
+  app.setTcpEntity(tcp.getProxy())
+
+def createSim(nodes):
+  bounds = Location.Location2D(FIELD_X, FIELD_Y)
+  field = Field(bounds)
+  placement = Placement.Random(bounds)
+  radioInfoShared = RadioInfo.createShared(
+        Constants.FREQUENCY_DEFAULT, 
+        Constants.BANDWIDTH_DEFAULT,
+        Constants.TRANSMIT_DEFAULT, 
+        Constants.GAIN_DEFAULT,
+        Util.fromDB(Constants.SENSITIVITY_DEFAULT), 
+        Util.fromDB(Constants.THRESHOLD_DEFAULT),
+        Constants.TEMPERATURE_DEFAULT, 
+        Constants.TEMPERATURE_FACTOR_DEFAULT, 
+        Constants.AMBIENT_NOISE_DEFAULT)
+  protMap = Mapper(Constants.NET_PROTOCOL_MAX)
+  protMap.mapToNext(Constants.NET_PROTOCOL_UDP)
+  pl = PacketLoss.Zero()
+  for i in range(nodes):
+    if not i%1000: sys.stdout.write('.')
+    createNode(i, field, placement, radioInfoShared, protMap, pl, pl)
+  print
+  sys.stdout.flush()
+  Util.printMemoryStats()
+
+if __name__=='main':
+  args = sys.argv[1:]
+  if not len(args):
+    print 'syntax: memory.jpy <nodes>'
+    sys.exit(1)
+  nodes = int(args[0])
+  print 'Creating %d nodes' % nodes
+  createSim(nodes)
+

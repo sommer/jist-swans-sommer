@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# java executable
+JAVA=java
+JAVA_OPT=-server
+
+# jist directories
+JIST_DIR=`dirname $0`/../
+JIST_SRC=${JIST_DIR}/jist.jar
+JIST_LIBS=${JIST_DIR}/bcel.jar:${JIST_DIR}/bsh.jar:${JIST_DIR}/jargs.jar:${JIST_DIR}/log4j.jar:${JIST_DIR}/jython.jar
+
+# .so path
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${JIST_SRC}/jist/swans/misc
+export LD_LIBRARY_PATH
+
+# max heap
+MEM=`cat /proc/meminfo | grep MemTotal | grep -o "[0-9]\+"`
+MEM=$(( ($MEM-200000)/1024 ))
+
+# run spot, run
+exec env CLASSPATH=${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} ${JAVA} ${JAVA_OPT} -Xmx${MEM}m -jar ${JIST_SRC} ${JIST_ARGS} $*

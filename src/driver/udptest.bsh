@@ -1,0 +1,88 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <udptest.bsh Tue 2004/04/06 11:59:05 barr pompom.cs.cornell.edu>
+//
+
+// Copyright (C) 2004 by Cornell University
+// All rights reserved.
+// Refer to LICENSE for terms and conditions of use.
+
+
+
+//////////////////////////////////////////////////
+// Initialize entities
+//
+
+// field
+Location bounds = new Location.Location2D(200, 200);
+Field field = new Field(bounds);
+RadioInfo.RadioInfoShared radioInfoShared = RadioInfo.createShared(
+    Constants.FREQUENCY_DEFAULT, 
+    Constants.BANDWIDTH_DEFAULT,
+    Constants.TRANSMIT_DEFAULT, 
+    Constants.GAIN_DEFAULT,
+    Util.fromDB(Constants.SENSITIVITY_DEFAULT), 
+    Util.fromDB(Constants.THRESHOLD_DEFAULT),
+    Constants.TEMPERATURE_DEFAULT, 
+    Constants.TEMPERATURE_FACTOR_DEFAULT, 
+    Constants.AMBIENT_NOISE_DEFAULT);
+
+// protocol mapper
+Mapper protMap = new Mapper(Constants.NET_PROTOCOL_MAX);
+protMap.mapToNext(Constants.NET_PROTOCOL_UDP);
+
+// packet loss
+PacketLoss pl = new PacketLoss.Zero();
+
+// nodes
+int i=1;
+
+// radio
+RadioNoise radio = new RadioNoiseIndep(i, radioInfoShared);
+
+// mac
+Mac802_11 mac = new Mac802_11(
+    new MacAddress(i), radio.getRadioInfo());
+
+// net
+NetIp net = new NetIp(new jist.swans.net.NetAddress(i), protMap, pl, pl);
+
+// trans
+TransUdp udp = new TransUdp();
+
+//////////////////////////////////////////////////
+// Entity hookup
+//
+
+// field hookup
+Location location = new Location.Location2D(0, 0);
+field.addRadio(radio.getRadioInfo(), radio.getProxy(), location);
+
+// radio hookup
+radio.setFieldEntity(field.getProxy());
+radio.setMacEntity(mac.getProxy());
+
+// net hookup
+byte intId = net.addInterface(mac.getProxy());
+net.setProtocolHandler(Constants.NET_PROTOCOL_UDP, udp.getProxy());
+
+// mac hookup
+mac.setRadioEntity(radio.getProxy());
+mac.setNetEntity(net.getProxy(), intId);
+
+// trans hookup
+udp.setNetEntity(net.getProxy());
+
+// applications
+AppJava server = new AppJava(driver.udptest.Server.class);
+server.setUdpEntity(udp.getProxy());
+AppJava client = new AppJava(driver.udptest.Client.class);
+client.setUdpEntity(udp.getProxy());
+
+//////////////////////////////////////////////////
+// Schedule application start
+//
+
+server.getProxy().run(null);
+client.getProxy().run(null);
+

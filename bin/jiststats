@@ -1,0 +1,20 @@
+#!/bin/sh
+
+JIST_SRC=`dirname $0`/../src
+JIST_EXT='-type f -name *.java -o -name *.bsh -o -name *.jpy'
+JIST_COM='-type f -name *.class'
+pushd $JIST_SRC > /dev/null
+
+echo "       - files	classes	lines		semi	bytecode"
+
+echo "JiST   - "`find jist/runtime $JIST_EXT | wc -l`"	"`find jist/runtime $JIST_COM | wc -l`"	"`find jist/runtime $JIST_EXT | xargs wc -l | tail -1`"	"`find jist/runtime $JIST_EXT | scc.py -f=- -t`"	"`find jist/runtime $JIST_COM | rimdu -s -t - | tail -1`
+
+echo "mini   - "`find jist/minisim $JIST_EXT | wc -l`"	"`find jist/minisim $JIST_COM | wc -l`"	"`find jist/minisim $JIST_EXT | xargs wc -l | tail -1`"	"`find jist/minisim $JIST_EXT | scc.py -f=- -t`"	"`find jist/minisim $JIST_COM | rimdu -s -t - | tail -1`
+
+echo "SWANS  - "`find jist/swans $JIST_EXT | wc -l`"	"`find jist/swans $JIST_COM | wc -l`"	"`find jist/swans $JIST_EXT | xargs wc -l | tail -1`"	"`find jist/swans $JIST_EXT | scc.py -f=- -t`"	"`find jist/swans $JIST_COM | rimdu -s -t - | tail -1`
+
+echo "driver - "`find driver $JIST_EXT | wc -l`"	"`find driver $JIST_COM | wc -l`"	"`find driver $JIST_EXT | xargs wc -l | tail -1`"	"`find driver $JIST_EXT | scc.py -f=- -t`"	"`find driver $JIST_COM | rimdu -s -t - | tail -1`
+
+echo "TOTAL  - "`find . $JIST_EXT | wc -l`"	"`find . $JIST_COM | wc -l`"	"`find . $JIST_EXT | xargs wc -l | tail -1`"	"`find . $JIST_EXT | scc.py -f=- -t`"	"`find . $JIST_COM | rimdu -s -t - | tail -1`
+
+popd > /dev/null

@@ -1,0 +1,290 @@
+#! /bin/env python
+
+##################################################
+# Name:        qrun
+# Author:      Rimon Barr <barr@cs.cornell.edu>
+
+__doc__ = 'Throttling batch execution engine'
+__version__ = '0.1'
+
+import getopt, sys, string, os, re, md5, popen2
+import threading, time, glob, random, signal
+
+##################################################
+# Activity log:
+#
+# 17/01/04 - first version
+
+try: HOME=os.environ['HOME']
+except: raise 'HOME environment variable not defined'
+QUEUE = 5
+QUEUE_DIR = '.qrun'
+QUEUE_DIRPATH = os.path.join(HOME, QUEUE_DIR)
+if not os.path.exists(QUEUE_DIRPATH):
+  os.makedirs(QUEUE_DIRPATH)
+QUEUE_PREFIX = 'qrun-'
+QUEUE_PIDFILE = 'qrun.pid'
+QUEUE_PIDPATH = os.path.join(QUEUE_DIRPATH, QUEUE_PIDFILE)
+CONC = 5
+CHECK_PERIOD = 5
+
+def showVersion():
+  print 'qrun v'+__version__+', by Rimon Barr:',
+  print 'Throttling batch execution engine.'
+
+def showUsage():
+  print
+  showVersion()
+  print '''
+SYNOPSIS:
+  Execute a command, but via a queue that throttles the 
+  number of concurrently running commands. 
+    Note: No standard output on queued commands!
+
+USAGE: qrun [opts] cmd
+       qrun -h | -v
+
+  -h, -?, --help      display this help information
+  -v, --version       display version
+  -s, --server        run queue server
+  -n, --num           number of concurrent commands [5]
+  -p, --pause         polling period [5s]
+  -l, --list          show queue
+  -c, --count         show queue length
+  -q, --queue         select queueing priority
+
+Send comments, suggestions and bug reports to <barr+qrun@cs.cornell.edu>.
+
+'''
+
+def usageError():
+  print 'qrun command syntax error'
+  print 'Try `qrun --help\' for more information.'
+
+##################################################
+# pid routines
+
+def getPid(pidfile=QUEUE_PIDPATH):
+  pid = 0
+  if not os.path.exists(pidfile): return pid
+  try:
+    f = open(pidfile, 'r')
+    pid = int(f.readline())
+    f.close()
+  except:
+    pass
+  return pid
+
+def setPid(pidfile=QUEUE_PIDPATH):
+  f = open(pidfile, 'w+')
+  print >> f, os.getpid()
+  f.close()
+
+def isAlive(pidfile=QUEUE_PIDPATH):
+  pid = getPid(pidfile)
+  if not pid>0: return
+  cmd = 'ps -p %d | grep %d' % (pid, pid)
+  lines = os.popen(cmd).readlines()
+  return len(lines)
+
+##################################################
+# job files
+
+JOBFILE_CACHE = {}
+JOBFILE_CACHE_COUNT = 0
+JOBFILE_CACHE_LIMIT = 100
+
+def queueFilename(pid):
+  return os.path.join(QUEUE_DIRPATH, QUEUE_PREFIX)+str(pid)
+
+def queueFiles():
+  return glob.glob(queueFilename("*"))
+
+def getJobFile(fname, remove=0):
+  global JOBFILE_CACHE
+  try:
+    info = JOBFILE_CACHE[fname]
+    if remove: removeJobFile(fname)
+    return info
+  except: pass
+  try:
+    f = open(fname, 'r')
+    info = eval(f.readline())
+    f.close()
+    if remove: removeJobFile(fname)
+    JOBFILE_CACHE[fname] = info
+    return info
+  except:
+    return None
+
+def removeJobFile(fname):
+  try: del JOBFILE_CACHE[fname]
+  except: pass
+  try: os.remove(fname)
+  except: pass
+
+def putJob(pid, info):
+  f = open(queueFilename(pid), 'w+')
+  print >> f, info
+  f.close()
+
+def getJob(pid, remove=0):
+  return getJobFile(queueFilename(pid), remove)
+
+def removeJob(pid):
+  removeJobFile(queueFilename(pid))
+
+##################################################
+# primary functionality
+
+LOCK = threading.Lock()
+
+def doServer():
+  if isAlive():
+    print 'qrun server already running: pid=%d. exiting...' % getPid()
+    return
+  setPid()
+  for i in range(CONC-1):
+    t = threading.Thread(target=doServerThread)
+    t.setDaemon(1)
+    t.start()
+    time.sleep(CHECK_PERIOD)
+  try:
+    doServerThread()
+  except: pass
+  while 1:
+    time.sleep(10)
+
+def doServerThread():
+  while 1:
+    try:
+      doJob(getNextJob())
+    except KeyboardInterrupt: raise
+    except: pass
+
+def doList():
+  global JOBFILE_CACHE, JOBFILE_CACHE_COUNT, JOBFILE_CACHE_LIMIT
+  JOBFILE_CACHE_COUNT = JOBFILE_CACHE_COUNT + 1
+  if JOBFILE_CACHE_COUNT>JOBFILE_CACHE_LIMIT: 
+    JOBFILE_CACHE_COUNT=0
+    JOBFILE_CACHE = {}
+  files = queueFiles()
+  result = []
+  for f in files:
+    info = getJobFile(f)
+    if info:
+      if not info.has_key('pri'):
+        info['pri'] = 5
+      if not info.has_key('qtime'):
+        info['qtime'] = 0
+      result.append( (info['pri'], info['qtime'], info['pid'], info['cmd']) )
+  result.sort()
+  return result
+
+def doEnqueue(cmd):
+  info = {
+    'cmd': cmd,
+    'env': os.environ,
+    'cwd': os.getcwd(),
+    'pid': os.getpid(),
+    'pri': QUEUE,
+    'qtime': time.time(),
+  }
+  putJob(os.getpid(), info)
+
+def doJob(info):
+  if not info: return
+  pid = os.fork()
+  cmdStr = string.join(info['cmd'])
+  if pid: # parent
+    os.waitpid(pid, 0)
+    print '  end %s %5d: %s' % (time.asctime()[11:-5], info['pid'], cmdStr)
+    sys.stdout.flush()
+    return
+  # child
+  try:
+    print 'begin %s %5d(%d): %s' % (time.asctime()[11:-5], info['pid'], info['pri'], cmdStr)
+    sys.stdout.flush()
+  except: pass
+  # for desc in [0, 1, 2]: os.close(desc)
+  signal.signal(signal.SIGINT, signal.SIG_IGN)
+  os.chdir(info['cwd'])
+  os.execvpe(info['cmd'][0], info['cmd'], info['env'])
+
+
+def getNextJob():
+  global LOCK
+  info = 0
+  print 'worker thread checking for job...'
+  sys.stdout.flush()
+  while not info:
+    LOCK.acquire()
+    try:
+      list = doList()
+      if list:
+        info = getJob(list[0][2], 1)
+        time.sleep(0.25)
+    finally:
+      LOCK.release()
+    if not info:
+      time.sleep(random.random()*2*CHECK_PERIOD*CONC)
+  return info
+
+
+##################################################
+# entry point
+
+def main():
+  global CONC, CHECK_PERIOD, QUEUE
+  servermode = 0
+  listmode = 0
+  countmode = 0
+
+  try:
+    opts, args = getopt.getopt(sys.argv[1:], 'hv?slcn:p:q:',
+      ['help', 'version', 'server', 'list', 'count', 'num=', 
+      'pause=', 'queue='])
+  except getopt.error: 
+    usageError()
+    return -1
+  for o, a in opts:
+    if o in ("-h", "--help", "-?"):
+      showUsage()
+      return
+    if o in ("-v", "--version"):
+      showVersion()
+      return
+    if o in ("-s", "--server"):
+      servermode = 1
+    if o in ("-l", "--list"):
+      listmode = 1
+    if o in ("-c", "--count"):
+      countmode = 1
+    if o in ("-n", "--num"):
+      CONC = int(a)
+    if o in ("-p", "--pause"):
+      CHECK_PERIOD = int(a)
+    if o in ("-q", "--queue"):
+      QUEUE = int(a[1:])
+  
+  if servermode:
+    showVersion()
+    doServer()
+  elif listmode:
+    for pri, x, pid, cmd in doList():
+      print '%5d(%d): %s' % (pid, pri, string.join(cmd))
+      sys.stdout.flush()
+  elif countmode:
+    print '%d' % len(queueFiles())
+  else:
+    if not args:
+      usageError()
+      return
+    doEnqueue(args)
+
+if __name__ == '__main__':
+  try:
+    main()
+  except KeyboardInterrupt:
+    pass
+

@@ -1,0 +1,87 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <events.pc Sun 2003/04/20 23:02:18 barr pompom.cs.cornell.edu>
+//
+// Author: Rimon Barr <barr+jist@cs.cornell.edu>
+//
+
+/**
+ * This application measures message THROUGHPUT
+ * in Parsec. Conclusion: The time spent in this 
+ * program is directly proportional to the number
+ * of messages.
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+
+message process_null
+{
+};
+
+message process_int
+{
+  int i;
+};
+
+message process_double
+{
+  double d;
+};
+
+message process_string
+{
+  char s[5];
+};
+
+entity driver(int argc, char **argv) 
+{
+  int i, num;
+  if(argc<2)
+  {
+    printf("syntax: events null|int|double|string <num>\n");
+    exit(1);
+  }
+  num = atoi(argv[2]);
+  if(!strcmp(argv[1], "null"))
+  {
+    for(i=0; i<num; i++)
+    {
+      send process_null { } to self after 1;
+      receive(process_null p) { }
+    }
+  }
+  else if(!strcmp(argv[1], "int"))
+  {
+    for(i=0; i<num; i++)
+    {
+      send process_int { 1 } to self after 1;
+      receive(process_int p) { }
+    }
+  }
+  else if(!strcmp(argv[1], "double"))
+  {
+    for(i=0; i<num; i++)
+    {
+      send process_double { 1.0 } to self after 1;
+      receive(process_double p) { }
+    }
+  }
+  else if(!strcmp(argv[1], "string"))
+  {
+    for(i=0; i<num; i++)
+    {
+      send process_string { "rim" } to self after 1;
+      receive(process_string p) { }
+    }
+  }
+  else
+  {
+    printf("invalid mode type: %s\n", argv[1]);
+    exit(1);
+  }
+}
+

@@ -1,0 +1,14 @@
+//////////////////////////////////////////////////
+// JIST (Java In Simulation Time) Project
+// Timestamp: <hello.bsh Tue 2004/04/06 11:29:13 barr pompom.cs.cornell.edu>
+//
+
+// Copyright (C) 2004 by Cornell University
+// All rights reserved.
+// Refer to LICENSE for terms and conditions of use.
+
+// run as: jist --bsh hello.bsh
+System.out.println("starting simulation from BeanShell script!");
+import jist.minisim.hello;
+hello h = new hello();
+h.myEvent();

@@ -1,0 +1,47 @@
+JIST (Java In Simulation Time) Project
+Timestamp: <STYLE Tue 2004/04/06 11:54:26 barr pompom.cs.cornell.edu>
+
+Copyright (C) 2004 by Cornell University
+All rights reserved.
+Refer to LICENSE for terms and conditions of use.
+
+
+General coding and style guidelines for JiST/SWANS:
+
+- Indentation is always exactly two spaces.
+- Tabs should be completely avoided.
+- Braces are on either own lines, as in:
+    if(flag)
+    {
+      do_something();
+    }
+    else
+    {
+      do_something();
+    }
+- For single-statement code blocks, the following is to be avoided:
+    if(flag)
+      do_something();
+  If you should instead use one of:
+    if(flag)
+    {
+      do_something();
+    }
+  or:
+    if(flag) do_something();
+- Avoid file explosion by placing multiple related classes in the same file.
+  One can use PUBLIC STATIC inner classes to achieve this without compromising
+  class visibility or scope.
+- Files that are related should share a prefix (not a suffix), as in:
+    RadioNoiseIndep
+    RadioNoiseAdditive
+  rather than:
+    IndepRadioNoise
+    AdditiveRadioNoise
+- Try to keep functions short, clear, and sensibly named. 
+- Factor out common functionality wherever you possibly can.
+- As rules of thumb, functions should preferably be:
+   1) less than a screenful
+   2) not indented beyond 3 levels
+- Comment!
+

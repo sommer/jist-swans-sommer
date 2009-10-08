@@ -1,0 +1,41 @@
+##################################################
+# JIST (Java In Simulation Time) Project
+# Timestamp: <Makefile.include Sun 2005/03/13 11:40:33 barr rimbase.rimonbarr.com>
+#
+
+# Copyright (C) 2004 by Cornell University
+# All rights reserved.
+# Refer to LICENSE for terms and conditions of use.
+
+VERSION := 1.0.6
+CWD := $(shell pwd)
+CVS_ROOT=:pserver:barr@jist.ece.cornell.edu:/cvs-jist
+
+
+JAVA := $(wildcard *.java)
+CLASS := $(JAVA:.java=.class)
+SPY := $(wildcard *.spy)
+HTML := $(SPY:.spy=.html)
+
+.PHONY: all subdir clean remake run
+
+all: subdir $(CLASS) $(HTML)
+
+$(CLASS): $(JAVA)
+	javac -source 1.4 $(JAVA)
+	@#jikes -source 1.4 $(JAVA)
+
+$(HTML): $(SPY)
+	spyce -O $(SPY) 
+
+subdir: 
+	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir);)
+
+clean: 
+	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean;)
+	-rm -f *.class $(HTML)
+
+remake: clean all
+
+run: all
+
