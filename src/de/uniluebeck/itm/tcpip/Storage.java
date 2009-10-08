@@ -7,21 +7,22 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
+import jist.runtime.JistAPI;
 
-public class Storage {
-	private LinkedList<Byte> storageList;
+public class Storage implements JistAPI.DoNotRewrite {
+	private LinkedList storageList;
 	private int position;
-	private ListIterator<Byte> listIt;
+	private ListIterator listIt;
 	
 	public Storage()
 	{
-		storageList = new LinkedList<Byte>();
+		storageList = new LinkedList();
 		init();
 	}
 
 	public Storage(byte[] packet)
 	{
-		storageList = new LinkedList<Byte>();
+		storageList = new LinkedList();
 		
 		for (int i=0; i < packet.length; i++)
 		{
@@ -33,7 +34,7 @@ public class Storage {
 	
 	public Storage(short[] packet)
 	{
-		storageList = new LinkedList<Byte>();
+		storageList = new LinkedList();
 		
 		for (int i=0; i < packet.length; i++)
 		{
@@ -46,7 +47,7 @@ public class Storage {
 
 	public Storage(short[] packet, int offset, int length)
 	{
-		storageList = new LinkedList<Byte>();
+		storageList = new LinkedList();
 		
 		for (int i=offset; i < length; i++)
 		{
@@ -96,7 +97,7 @@ public class Storage {
 			throw new IllegalStateException("Error reading byte, invalid list position specified for reading: "+position);
 		
 		position++;
-		return (short) listIt.next();
+		return (short)((Byte)listIt.next()).shortValue();
 		
 	}
 
@@ -130,7 +131,7 @@ public class Storage {
 		// 127 -> 127 
 
 		position++;
-		return (short) ((listIt.next()+ 256) % 256);
+		return (short) ((((Byte)listIt.next()).shortValue()+ 256) % 256);
 		
 	}
 
@@ -485,7 +486,7 @@ public class Storage {
 	 * Retrieve the internal list that is used to store the data
 	 * @return the internal storage list
 	 */
-	protected LinkedList<Byte> getStorageList()
+	protected LinkedList getStorageList()
 	{
 		return storageList;
 	}
@@ -503,7 +504,7 @@ public class Storage {
 	public byte[] getBytes()
 	{
 		byte[] buffer = new byte[size()];
-		for (int i=0; i < size(); i++) buffer[i] = storageList.get(i).byteValue();
+		for (int i=0; i < size(); i++) buffer[i] = ((Byte)storageList.get(i)).byteValue();
 
 		return buffer;
 	}

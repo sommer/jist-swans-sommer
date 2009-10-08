@@ -3,8 +3,9 @@ package de.uniluebeck.itm.tcpip;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import jist.runtime.JistAPI;
 
-public class Socket {
+public class Socket implements JistAPI.DoNotRewrite {
 	private		int		port;
 	private		String	host;
 	private		java.net.ServerSocket	serverSocket = null;
@@ -82,10 +83,10 @@ public class Socket {
 		storageLength.writeInt(length);
 		
 		for (int i=0; i < 4; i++)
-			buffer[i] = storageLength.getStorageList().get(i).byteValue();
+			buffer[i] = ((Byte)storageLength.getStorageList().get(i)).byteValue();
 
 		for (int i=0; i < storageToSend.size(); i++)
-			buffer[i+4] = storageToSend.getStorageList().get(i).byteValue();
+			buffer[i+4] = ((Byte)storageToSend.getStorageList().get(i)).byteValue();
 
 /*
 		System.err.print("Send " + length + " bytes via tcpip::socket: ");
