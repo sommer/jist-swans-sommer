@@ -178,7 +178,9 @@ public final class Util
     {
       tmp = false;
     }
-    nativeLogExists = tmp;
+    //[sommer] hack to disable native log - something goes wrong with values passed via JNI
+    //nativeLogExists = tmp;
+    nativeLogExists = false;
   }
 
   /**
