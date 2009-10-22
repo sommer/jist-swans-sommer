@@ -374,6 +374,10 @@ public class Field implements FieldInterface
   public void transmit(RadioInfo srcInfo, Message msg, long duration)
   {
     RadioData srcData = getRadioData(srcInfo.getUnique().getID());
+
+    // [sommer] ignore message if RadioData doesn't exist (e.g. because of the Radio having been deleted in the meantime)
+    if (srcData == null) return;
+
     spatial.visitTransmit(transmitVisitor, srcData.info, srcData.loc, msg, new Long(duration), limit);
   }
 
