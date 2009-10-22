@@ -1,0 +1,13 @@
+<edges>
+   <edge id="0" fromnode="0" tonode="1" nolanes="1" speed="36"/>
+   <edge id="1" fromnode="1" tonode="4" nolanes="1" speed="36"/>
+   <edge id="2" fromnode="4" tonode="6" nolanes="1" speed="36"/>
+   <edge id="3" fromnode="6" tonode="7" nolanes="1" speed="36"/>
+   <edge id="4" fromnode="7" tonode="5" nolanes="1" speed="36"/>
+   <edge id="5" fromnode="4" tonode="5" nolanes="1" speed="36"/>
+   <edge id="6" fromnode="5" tonode="2" nolanes="1" speed="36"/>
+   <edge id="7" fromnode="2" tonode="3" nolanes="1" speed="36"/>
+   <edge id="8" fromnode="3" tonode="0" nolanes="1" speed="36"/>
+   <edge id="corner1" fromnode="corner1" tonode="1" nolanes="1" speed="36"/>
+   <edge id="corner2" fromnode="corner2" tonode="3" nolanes="1" speed="36"/>
+</edges>
