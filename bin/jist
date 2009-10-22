@@ -17,8 +17,10 @@ LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${JIST_SRC}/jist/swans/misc
 export LD_LIBRARY_PATH
 
 # max heap
-MEM=`cat /proc/meminfo | grep MemTotal | grep -o "[0-9]\+"`
-MEM=$(( ($MEM-200000)/1024 ))
+#[sommer] fix memory allocation to 256M
+#MEM=`cat /proc/meminfo | grep MemTotal | grep -o "[0-9]\+"`
+#MEM=$(( ($MEM-200000)/1024 ))
+MEM=256
 
 # run spot, run
 exec env CLASSPATH=${JIST_SRC}:${JIST_LIBS}:${CLASSPATH} ${JAVA} ${JAVA_OPT} -Xmx${MEM}m jist.runtime.Main ${JIST_ARGS} $*
